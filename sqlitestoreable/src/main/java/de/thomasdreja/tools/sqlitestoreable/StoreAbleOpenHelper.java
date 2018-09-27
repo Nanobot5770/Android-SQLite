@@ -14,8 +14,6 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -36,8 +34,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     /**
      * Hashmap containing all tables of the database, indexed by table name
      */
-    private final HashMap<String,SQLiteTable> tableMap;
-    private final List<Class<? extends StoreAble>> keyClasses;
+    protected final HashMap<Class<? extends StoreAble>,SQLiteTable> tableMap;
 
     /**
      * Creates a new database based on the application context, name and version.
@@ -52,11 +49,9 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     public StoreAbleOpenHelper(Context context, String name, int version, SQLiteTable.TableInformation... tables) {
         super(context, name, null, version);
         tableMap = new HashMap<>();
-        keyClasses = new ArrayList<>();
 
         for (SQLiteTable.TableInformation helper : tables) {
-            tableMap.put(helper.storageClass.getName(), new SQLiteTable(helper));
-            keyClasses.add(helper.storageClass);
+            tableMap.put(helper.storageClass, new SQLiteTable(helper));
         }
     }
 
@@ -78,17 +73,9 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
 
     /**
      * Returns the names of all tables in the database
-     * @return List with all Class objects used to identify the database tables
+     * @return Set with all Class objects used to identify the database tables
      */
-    public List<Class<? extends StoreAble>> getAllTableClasses() {
-        return keyClasses;
-    }
-
-    /**
-     * Returns the names of all tables in the database
-     * @return Set with all Class names used to identify the database tables
-     */
-    public Set<String> getAllTableNames() {
+    public Set<Class<? extends StoreAble>> getAllTableClasses() {
         return tableMap.keySet();
     }
 
@@ -98,11 +85,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @return True: Table exists in database, False: Table not found
      */
     public boolean hasTable(Class<? extends StoreAble> storageClass) {
-        return tableMap.containsKey(storageClass.getName());
+        return tableMap.containsKey(storageClass);
     }
 
     public SQLiteTable getTableFor(Class<? extends StoreAble> storageClass) {
-        return tableMap.get(storageClass.getName());
+        return tableMap.get(storageClass);
     }
 
     /**
@@ -114,8 +101,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#get(long, SQLiteDatabase, Class)
      */
     public <S extends StoreAble> S get(long id, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).get(id, getReadableDatabase(), storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).get(id, getReadableDatabase(), storageClass);
         }
         return null;
     }
@@ -130,8 +117,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
      */
     public <S extends StoreAble> S save(StoreAble element, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).save(element, getWritableDatabase(), storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).save(element, getWritableDatabase(), storageClass);
         }
         return null;
     }
@@ -145,9 +132,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#delete(StoreAble, SQLiteDatabase)
      */
     public <S extends StoreAble> boolean delete(StoreAble element, Class<S> storageClass) {
-        return tableMap.containsKey(storageClass.getName())
-                && storageClass.isInstance(element)
-                && tableMap.get(storageClass.getName()).delete(element, getWritableDatabase());
+        return tableMap.containsKey(storageClass) && storageClass.isInstance(element) && tableMap.get(storageClass).delete(element, getWritableDatabase());
     }
 
     /**
@@ -158,8 +143,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#getAll(SQLiteDatabase, Class)
      */
     public <S extends StoreAble> List<S> getAll(Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).getAll(getReadableDatabase(), storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).getAll(getReadableDatabase(), storageClass);
         }
         return null;
     }
@@ -174,8 +159,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#getWhere(SQLiteDatabase, String, String, Class)
      */
     public <S extends StoreAble> List<S> getWhere(String field, String value, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).getWhere(getReadableDatabase(), field, value, storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).getWhere(getReadableDatabase(), field, value, storageClass);
         }
         return null;
     }
@@ -188,8 +173,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#count(SQLiteDatabase)
      */
     public <S extends StoreAble> int count(Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).count(getReadableDatabase());
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).count(getReadableDatabase());
         }
         return -1;
     }
@@ -203,8 +188,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#saveAll(List, SQLiteDatabase, Class)
      */
     public <S extends StoreAble> List<S> saveAll(List<S> elements, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).saveAll(elements, getWritableDatabase(), storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).saveAll(elements, getWritableDatabase(), storageClass);
         }
         return elements;
     }
@@ -218,8 +203,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#saveAll(StoreAble[], SQLiteDatabase, Class)
      */
     public <S extends StoreAble> S[] saveAll(S[] elements, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass.getName())) {
-            return tableMap.get(storageClass.getName()).saveAll(elements, getWritableDatabase(), storageClass);
+        if(tableMap.containsKey(storageClass)) {
+            return tableMap.get(storageClass).saveAll(elements, getWritableDatabase(), storageClass);
         }
         return elements;
     }

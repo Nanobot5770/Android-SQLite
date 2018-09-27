@@ -238,9 +238,9 @@ public class SQLiteTable {
         builder.append(information.name);
         builder.append(" (");
         for(int i = 0; i < information.dbFields.length; i++) {
-            builder.append(information.dbFields[i].name);
-            builder.append(" ");
             builder.append(information.dbFields[i].fieldType);
+            builder.append(" ");
+            builder.append(information.dbFields[i].name);
             if(i != (information.dbFields.length-1)) {
                 builder.append(",");
             }

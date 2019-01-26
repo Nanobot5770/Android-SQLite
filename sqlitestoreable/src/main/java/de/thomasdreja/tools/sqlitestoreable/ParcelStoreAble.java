@@ -34,7 +34,7 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
     /**
      * Creates a new StoreAble object based upon the data contained in the given cursor
      * @param cursor Cursor containing data from the database
-     * @see de.thomasdreja.tools.sqlitestoreable.SQLiteTable.TableInformation#read(Cursor, Class)
+     * @see TableInformation#read(Cursor, Class)
      * @see SQLiteTable#get(long, SQLiteDatabase, Class)
      */
     public ParcelStoreAble(Cursor cursor) {

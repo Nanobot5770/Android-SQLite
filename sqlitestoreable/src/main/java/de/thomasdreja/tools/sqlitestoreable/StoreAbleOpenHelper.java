@@ -14,6 +14,7 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -43,14 +44,14 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param name Name of the database
      * @param version Version of the database - Increasing it will drop all existing elements!
      * @param tables Table information for creating all tables in the database
-     * @see SQLiteTable.TableInformation
+     * @see TableInformation
      * @see SQLiteTable
      */
-    public StoreAbleOpenHelper(Context context, String name, int version, SQLiteTable.TableInformation... tables) {
+    public StoreAbleOpenHelper(Context context, String name, int version, TableInformation... tables) {
         super(context, name, null, version);
         tableMap = new HashMap<>();
 
-        for (SQLiteTable.TableInformation helper : tables) {
+        for (TableInformation helper : tables) {
             tableMap.put(helper.storageClass, new SQLiteTable(helper));
         }
     }
@@ -185,11 +186,12 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return A new list with the given StoreAbles stored in the database and their IDs updated if necessary
-     * @see SQLiteTable#saveAll(List, SQLiteDatabase, Class)
+     * @see SQLiteTable#saveAll(Collection, SQLiteDatabase, Class)
      */
-    public <S extends StoreAble> List<S> saveAll(List<S> elements, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).saveAll(elements, getWritableDatabase(), storageClass);
+    public <S extends StoreAble, L extends Collection<S>> L saveAll(L elements, Class<S> storageClass) {
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.saveAll(elements, getWritableDatabase(), storageClass);
         }
         return elements;
     }

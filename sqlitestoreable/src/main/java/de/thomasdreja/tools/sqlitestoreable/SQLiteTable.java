@@ -21,6 +21,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -29,171 +30,15 @@ import java.util.List;
 public class SQLiteTable {
 
     /**
-     * This class is used to provide the type specific information to the SQLiteTable.
-     * It names the table, provides a list of fields and it handles the creation of new StoreAble objects.
-     */
-    public static abstract class TableInformation {
-
-        /**
-         * DatabaseFields within the table
-         */
-        private final DatabaseField[] dbFields;
-
-        /**
-         * Name of the table, always set to the class name of the stored objects
-         */
-        private final String name;
-
-        /**
-         * Class Object of the objects to be stored in the table
-         */
-        final Class<? extends StoreAble> storageClass;
-
-        /**
-         * Creates a new TableInformation object for the given StoreAble class with the given database fields
-         * This in turn is used to create a matching table in the database
-         * @param storageClass Class of the Object to be stored into the table
-         * @param databaseFields Fields to store the information of the object (if no fields are given, the database can only store the ID)
-         * @see DatabaseField
-         * @see SQLiteTable#SQLiteTable(TableInformation)
-         */
-        public TableInformation(Class<? extends StoreAble> storageClass, DatabaseField... databaseFields) {
-            this.storageClass = storageClass;
-            this.name = storageClass.getSimpleName();
-
-            if(databaseFields == null) {
-                databaseFields = new DatabaseField[0];
-            }
-
-            dbFields = new DatabaseField[databaseFields.length+1];
-            dbFields[0] = DatabaseField.FIELD_ID;
-            System.arraycopy(databaseFields, 0, dbFields, 1, databaseFields.length);
-        }
-
-        /**
-         * Returns a new object based on the values from the database, stored within the given cursor.
-         * The cursor will already point to the correct element, only the current row needs to be read.
-         * @param cursor Cursor that contains values for 1 new element from the database
-         * @param storageClass Requested Class container for the object to be created. Use for safety checks!
-         * @param <S> Class of the object
-         * @return A object of class S that contains the values from the cursor
-         * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-         * @see SQLiteTable#getAll(SQLiteDatabase, Class)
-         * @see SQLiteTable#getWhere(SQLiteDatabase, String, String, Class)
-         * @see SQLiteTable#readNewElement(Cursor, Class)
-         */
-        <S extends StoreAble> S read(Cursor cursor, Class<S> storageClass) {
-            StoreAble result = read(cursor);
-            if(storageClass.isInstance(result)) {
-                return storageClass.cast(read(cursor));
-            }
-            return null;
-        }
-
-        /**
-         * Returns a new object based on the values from the database, stored within the given cursor.
-         * The cursor will already point to the correct element, only the current row needs to be read.
-         * @param cursor Cursor that contains values for 1 new element from the database
-         * @return A StoreAble that contains the values from the cursor
-         * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-         * @see SQLiteTable#getAll(SQLiteDatabase, Class)
-         * @see SQLiteTable#getWhere(SQLiteDatabase, String, String, Class)
-         * @see SQLiteTable#readNewElement(Cursor, Class)
-         */
-        protected abstract StoreAble read(Cursor cursor);
-    }
-
-    /**
-     * This class represents a field within a SQLite table. Each field has a name as identifier and a fixed field type.
-     * The static construction method ensures that only valid types are available
-     */
-    public static class DatabaseField {
-
-        /**
-         * Name identifier of the database field.
-         * Must be unique per table!
-         */
-        public final String name;
-
-        /**
-         * Type of the database field. Can only be one of a fixed set of SQLite types!
-         */
-        public final String fieldType;
-
-        /**
-         * Creates a new DatabaseField with the given name and type parameters.
-         * Note: This constructor is private and should only be accessed with a fixed type in mind!
-         * @param name Name identifier of the database field
-         * @param type Type of the database field (must be a valid SQLite type)
-         */
-        private DatabaseField(String name, String type) {
-            this.name = name;
-            this.fieldType = type;
-        }
-
-        /**
-         * Name of the ID database field. Each StoreAble SQLiteTable will have this field automatically!
-         * @see SQLiteTable
-         * @see StoreAble
-         */
-        static final String ID = "ID";
-
-        /**
-         * Constant DatabaseField for the ID in the table. Each StoreAble SQLiteTable will have this field automatically!
-         * This field will also serve as primary key for the table.
-         * @see SQLiteTable
-         * @see StoreAble
-         */
-        static final DatabaseField FIELD_ID = new DatabaseField("INTEGER PRIMARY KEY", ID);
-
-        /**
-         * Creates a new field that will contain strings
-         * @param name Name of the field
-         * @return A new field with the given name and the string type
-         */
-        public static DatabaseField newStringField(String name) {
-            return new DatabaseField("TEXT", name);
-        }
-
-        /**
-         * Creates a new field that will contain integers or longs
-         * @param name Name of the field
-         * @return A new field with the given name and integer/long type
-         */
-        public static DatabaseField newIntField(String name) {
-                return new DatabaseField("INTEGER", name);
-        }
-
-        /**
-         * Creates a new field that will contain floats or doubles
-         * @param name Name of the field
-         * @return A new field with the given name and float or double type
-         */
-        public static DatabaseField newFloatField(String name) {
-            return new DatabaseField("REAL", name);
-        }
-
-        /**
-         * Creates a new field that will contain binary data, useful for object serialisation.
-         * @param name Name of the field
-         * @return A new field with the given name and binary data type
-         * @see java.io.Serializable
-         */
-        public static DatabaseField newBinaryField(String name) {
-            return new DatabaseField("BLOB", name);
-        }
-    }
-
-    /**
      * String constant used to create comparisons for SQLite requests
      */
     private static final String EQUALS = "%s = ?";
 
     /**
      * String constant for comparisons for the ID field in SQLite requests
-     * @see DatabaseField#ID
+     * @see TableInformation.DatabaseField#ID
      */
-    private static final String ID_EQUALS = String.format(EQUALS, DatabaseField.ID);
+    private static final String ID_EQUALS = String.format(EQUALS, TableInformation.DatabaseField.ID);
 
     /**
      * The table information defining the structure and type of this table
@@ -222,7 +67,7 @@ public class SQLiteTable {
         return information.storageClass;
     }
 
-    public DatabaseField[] getFields() {
+    public TableInformation.DatabaseField[] getFields() {
         return information.dbFields;
     }
 
@@ -293,7 +138,7 @@ public class SQLiteTable {
      * @param value Value of the database field that needs to be matched
      * @param storeClass Class object used to identify the database table and for casting
      * @return A list of all elements (as objects of class S) that have a matching value in their given field
-     * @see DatabaseField
+     * @see TableInformation.DatabaseField
      * @see StoreAble
      * @see SQLiteTable#readList(Cursor, Class)
      */
@@ -353,14 +198,15 @@ public class SQLiteTable {
      * @return A new list with the given StoreAbles stored in the database and their IDs updated if necessary
      * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
      */
-    <S extends StoreAble> List<S> saveAll(List<S> elements, SQLiteDatabase database, Class<S> storeClass) {
-        ArrayList<S> results = new ArrayList<>();
-
-        for(S element : elements) {
-            results.add(save(element, database, storeClass));
+    <S extends StoreAble, L extends Collection<S>> L saveAll(L elements, SQLiteDatabase database, Class<S> storeClass) {
+        ArrayList<S> tmpList = new ArrayList<>();
+        for (S element : elements) {
+            tmpList.add(save(element, database, storeClass));
         }
 
-        return results;
+        elements.clear();
+        elements.addAll(tmpList);
+        return elements;
     }
 
     /**
@@ -434,7 +280,7 @@ public class SQLiteTable {
     private <S extends StoreAble> S update(S element, SQLiteDatabase database) {
         ContentValues values = new ContentValues();
         element.exportToDatabase(values);
-        values.put(DatabaseField.ID, element.getId());
+        values.put(TableInformation.DatabaseField.ID, element.getId());
         database.update(information.name, values, ID_EQUALS, new String[]{String.valueOf(element.getId())});
         database.close();
 
@@ -452,7 +298,7 @@ public class SQLiteTable {
      */
     private <S extends StoreAble> S readNewElement(Cursor cursor, Class<S> storageClass) {
         S element = information.read(cursor, storageClass);
-        element.setId(cursor.getLong(cursor.getColumnIndex(DatabaseField.ID)));
+        element.setId(cursor.getLong(cursor.getColumnIndex(TableInformation.DatabaseField.ID)));
         return element;
     }
 

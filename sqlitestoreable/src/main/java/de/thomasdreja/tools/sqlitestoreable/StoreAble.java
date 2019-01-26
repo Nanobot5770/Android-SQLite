@@ -16,7 +16,7 @@ import android.database.sqlite.SQLiteDatabase;
 /**
  * This interface provides the most basic methods to allow for storing objects into a SQLite database.
  * Any implementation should also provide a TableInformation to interconnect with the SQLiteTable
- * @see SQLiteTable.TableInformation
+ * @see TableInformation
  * @see SQLiteTable
  */
 public interface StoreAble {

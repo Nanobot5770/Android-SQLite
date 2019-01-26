@@ -37,7 +37,7 @@ public interface StoreAble {
     /**
      * Exports the objects values into the given ContentValues container so that they may be stored in the database.
      * @param databaseValues Empty ContentValues container, can be passed down the hierarchy.
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
+     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
      */
     void exportToDatabase(ContentValues databaseValues);
 

@@ -38,6 +38,10 @@ public abstract class TableInformation {
         dbFields = addFirstField(DatabaseField.FIELD_ID, databaseFields);
     }
 
+    public TableInformation(Class<? extends StoredCollection.CollectionNode> storageClass, boolean isNode, DatabaseField... databaseFields) {
+        this(storageClass, isNode ? addFirstField(DatabaseField.FIELD_PARENT_ID, databaseFields) : databaseFields);
+    }
+
     /**
      * Returns a new object based on the values from the database, stored within the given cursor.
      * The cursor will already point to the correct element, only the current row needs to be read.

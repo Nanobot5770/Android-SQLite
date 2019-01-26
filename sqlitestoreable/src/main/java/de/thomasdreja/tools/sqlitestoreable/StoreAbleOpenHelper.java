@@ -14,6 +14,7 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -102,8 +103,9 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#get(long, SQLiteDatabase, Class)
      */
     public <S extends StoreAble> S get(long id, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).get(id, getReadableDatabase(), storageClass);
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.get(id, getReadableDatabase(), storageClass);
         }
         return null;
     }
@@ -115,13 +117,14 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return The given StoreAble with a valid database ID (if not already present)
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
+     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
      */
-    public <S extends StoreAble> S save(StoreAble element, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).save(element, getWritableDatabase(), storageClass);
+    public <S extends StoreAble> boolean save(StoreAble element, Class<S> storageClass) {
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.save(element, getWritableDatabase());
         }
-        return null;
+        return false;
     }
 
     /**
@@ -133,7 +136,8 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#delete(StoreAble, SQLiteDatabase)
      */
     public <S extends StoreAble> boolean delete(StoreAble element, Class<S> storageClass) {
-        return tableMap.containsKey(storageClass) && storageClass.isInstance(element) && tableMap.get(storageClass).delete(element, getWritableDatabase());
+        final SQLiteTable table = tableMap.get(storageClass);
+        return table != null && storageClass.isInstance(element) && table.delete(element, getWritableDatabase());
     }
 
     /**
@@ -144,10 +148,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#getAll(SQLiteDatabase, Class)
      */
     public <S extends StoreAble> List<S> getAll(Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).getAll(getReadableDatabase(), storageClass);
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.getAll(getReadableDatabase(), storageClass);
         }
-        return null;
+        return new ArrayList<>();
     }
 
     /**
@@ -160,10 +165,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#getWhere(SQLiteDatabase, String, String, Class)
      */
     public <S extends StoreAble> List<S> getWhere(String field, String value, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).getWhere(getReadableDatabase(), field, value, storageClass);
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.getWhere(getReadableDatabase(), field, value, storageClass);
         }
-        return null;
+        return new ArrayList<>();
     }
 
     /**
@@ -174,8 +180,9 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @see SQLiteTable#count(SQLiteDatabase)
      */
     public <S extends StoreAble> int count(Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).count(getReadableDatabase());
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            return table.count(getReadableDatabase());
         }
         return -1;
     }
@@ -186,28 +193,127 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return A new list with the given StoreAbles stored in the database and their IDs updated if necessary
-     * @see SQLiteTable#saveAll(Collection, SQLiteDatabase, Class)
+     * @see SQLiteTable#saveAll(Collection, SQLiteDatabase)
      */
-    public <S extends StoreAble, L extends Collection<S>> L saveAll(L elements, Class<S> storageClass) {
+    public <S extends StoreAble> boolean saveAll(Collection<S> elements, Class<S> storageClass) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.saveAll(elements, getWritableDatabase(), storageClass);
+            return table.saveAll(elements, getWritableDatabase());
         }
-        return elements;
+        return false;
     }
 
     /**
-     * Stores all given StoreAbles within the database. Will also add IDs if necessary. Returns the stored objects in the same array.
-     * @param elements Array of StoreAbles that needs to be stored
-     * @param storageClass Class object used to identify the database table and for casting
-     * @param <S> Class of the element
-     * @return The given array with its content stored to the database and IDs updated if necessary
-     * @see SQLiteTable#saveAll(StoreAble[], SQLiteDatabase, Class)
+     * Fetches the nodes from the database and adds them to the collection
+     * @param collection Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return A collection with all nodes included
      */
-    public <S extends StoreAble> S[] saveAll(S[] elements, Class<S> storageClass) {
-        if(tableMap.containsKey(storageClass)) {
-            return tableMap.get(storageClass).saveAll(elements, getWritableDatabase(), storageClass);
+    private <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> C fillCollection(C collection, Class<N> nodeClass) {
+        if(collection != null) {
+            getWhere(TableInformation.DatabaseField.PARENT_ID, String.valueOf(collection.getId()), nodeClass);
         }
-        return elements;
+        return collection;
+    }
+
+    /**
+     * Reads a single collection and its nodes contained in the given table
+     * @param id ID of the collection
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return A collection with all nodes included
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> C get(long id, Class<C> collectionClass, Class<N> nodeClass) {
+        return fillCollection(get(id, collectionClass), nodeClass);
+    }
+
+    /**
+     * Reads all collections and their nodes from the given table
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return All collections and their nodes included
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> List<C> getAll(Class<C> collectionClass, Class<N> nodeClass) {
+        ArrayList<C> list = new ArrayList<>();
+        for(C element : getAll(collectionClass)) {
+            list.add(fillCollection(element, nodeClass));
+        }
+        return list;
+    }
+
+    /**
+     * Reads all collections and their nodes from the given table that match the given criteria
+     * @param field Field in the collection to be checked
+     * @param value Value of the field
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return All collections and their nodes included
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> List<C> getWhere(String field, String value, Class<C> collectionClass, Class<N> nodeClass) {
+        ArrayList<C> list = new ArrayList<>();
+        for(C element : getWhere(field, value, collectionClass)) {
+            list.add(fillCollection(element, nodeClass));
+        }
+        return list;
+    }
+
+    /**
+     * Saves the given collection and its nodes into the database
+     * @param collection Collection to be saved into the database (including its nodes)
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return True: Saving was successful, False: Saving failed
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> boolean save(StoredCollection<N> collection, Class<C> collectionClass, Class<N> nodeClass) {
+        boolean success = save(collection, collectionClass);
+        final SQLiteTable table = tableMap.get(nodeClass);
+        if(table != null) {
+            success = table.saveAll(collection, getWritableDatabase()) && success;
+        }
+        return success;
+    }
+
+    /**
+     * Saves all of the given collections and their nodes into the database
+     * @param collections All collections and their nodes to be saved into the database
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return True: Saving was successful, False: Saving failed
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> boolean saveAll(Collection<C> collections, Class<C> collectionClass, Class<N> nodeClass) {
+        boolean success = true;
+        for(C collection : collections) {
+            success = save(collection, collectionClass, nodeClass) && success;
+        }
+        return success;
+    }
+
+    /**
+     * Deletes the given database and its nodes from the database
+     * @param collection Collection to be deleted
+     * @param collectionClass Class object used to identify the collection database table and for casting
+     * @param nodeClass Class object used to identify the node database table and for casting
+     * @param <N> Node Class
+     * @param <C> Parent/Collection Class
+     * @return True: Deletion was successful, False: Deletion failed
+     */
+    public <N extends StoredCollection.CollectionNode, C extends StoredCollection<N>> boolean delete(C collection, Class<C> collectionClass, Class<N> nodeClass) {
+        boolean success = true;
+        for(N node : collection) {
+            success = delete(node, nodeClass) && success;
+        }
+        return delete(collection, collectionClass) && success;
     }
 }

@@ -175,52 +175,74 @@ public class SQLiteTable {
      * otherwise a new set will be added and the new ID will be set in the StoreAble
      * @param element StoreAble that needs to be stored in the database
      * @param database Database where the StoreAble should be stored
-     * @return The given StoreAble with a valid database ID (if not already present)
+     * @return True: The element was saved, False: The element could not be saved
      */
-    <S extends StoreAble> S save(StoreAble element, SQLiteDatabase database, Class<S> storeClass) {
-        if(storeClass.isInstance(element)) {
-            S mElement = storeClass.cast(element);
-
+    boolean save(StoreAble element, SQLiteDatabase database) {
+        if(element != null) {
             if(element.getId() >= 0) {
-                return update(mElement, database);
+                return update(element, -1, database);
             } else {
-                return insert(mElement, database);
+                return insert(element, -1, database);
             }
         }
+        return false;
+    }
 
-        return null;
+    /**
+     * NOTE: This function is used for nodes within a StoredCollection, other items use the regular save function!
+     * Stores a StoreAble object within the database. If it has an ID, the existing data set will be updated,
+     * otherwise a new set will be added and the new ID will be set in the StoreAble
+     * @param element NodeElement from a collection that needs to be stored in the database
+     * @param database Database where the StoreAble should be stored
+     * @return True: The element was saved, False: The element could not be saved
+     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
+     */
+    boolean save(StoredCollection.CollectionNode element, SQLiteDatabase database) {
+        if(element != null) {
+            if(element.getId() >= 0) {
+                return update(element, element.getParentId(), database);
+            } else {
+                return insert(element,  element.getParentId(), database);
+            }
+        }
+        return false;
     }
 
     /**
      * Stores all given StoreAbles within the database. Will also add IDs if necessary. Returns the stored objects in a new list.
      * @param elements List of StoreAbles that needs to be stored
      * @param database Database where the StoreAble should be stored
-     * @return A new list with the given StoreAbles stored in the database and their IDs updated if necessary
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
+     * @return True: all elements were saved, False: Not all elements could be saved
+     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
      */
-    <S extends StoreAble, L extends Collection<S>> L saveAll(L elements, SQLiteDatabase database, Class<S> storeClass) {
-        ArrayList<S> tmpList = new ArrayList<>();
-        for (S element : elements) {
-            tmpList.add(save(element, database, storeClass));
+    <S extends StoreAble> boolean saveAll(Collection<S> elements, SQLiteDatabase database) {
+        boolean saved = true;
+
+        for(S element : elements) {
+            saved = save(element, database) && saved;
         }
 
-        elements.clear();
-        elements.addAll(tmpList);
-        return elements;
+        return saved;
     }
 
     /**
-     * Stores all given StoreAbles within the database. Will also add IDs if necessary. Returns the stored objects in the same array.
-     * @param elements Array of StoreAbles that needs to be stored
+     * NOTE: This function is used for nodes within a StoredCollection, other items use the regular save function!
+     * Works similar to the regular saveAll, but focusses only on Node elements for CollictionStoreAbles.
+     * @param collection Collection of Nodes, which should be stored
      * @param database Database where the StoreAble should be stored
-     * @return The given array with its content stored to the database and IDs updated if necessary
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
+     * @param <N> CollectionNode Class - Nodes within the given Parent
+     * @return True: all elements were saved, False: Not all elements could be saved
+     * @see SQLiteTable#saveAll(Collection, SQLiteDatabase)
      */
-    <S extends StoreAble> S[] saveAll(S[] elements, SQLiteDatabase database, Class<S> storeClass) {
-        for(int i=0; i < elements.length; i++) {
-            elements[i] = save(elements[i], database, storeClass);
+    <N extends StoredCollection.CollectionNode> boolean saveAll(StoredCollection<N> collection, SQLiteDatabase database) {
+        boolean saved = true;
+
+        for(N node : collection) {
+            node.setParentId(collection.getId());
+            saved = save(node, database) && saved;
         }
-        return elements;
+
+        return saved;
     }
 
     /**
@@ -255,36 +277,52 @@ public class SQLiteTable {
      * Adds a StoreAble as a new dataset into the database.
      * Note: Do not call when object has a valid ID and already exists in database!
      * @param element Element to be stored
+     * @param parentId ID of the Collection Parent, -1 if no parent present
      * @param database Database for storage
-     * @param <S> Class of the element
-     * @return Element with the new database ID set
+     * @return True: The element was added, False: The element could not be added
      */
-    private <S extends StoreAble> S insert(S element, SQLiteDatabase database) {
-        ContentValues values = new ContentValues();
-        element.exportToDatabase(values);
-        long id = database.insert(information.name, null, values);
+    private boolean insert(StoreAble element, long parentId, SQLiteDatabase database) {
+        final long id = database.insert(information.name, null, getStoreAbleValues(element, -1, parentId));
         element.setId(id);
         database.close();
-
-        return element;
+        return id >= 0;
     }
 
     /**
      * Updates the dataset matching the ID of the given StoreAble in the database.
      * Note: Do not call if the object has no ID and doesn't exist in the database.
      * @param element Element to be stored
+     * @param parentId ID of the Collection Parent, -1 if no parent present
      * @param database Database for storage
-     * @param <S> Class of the element
-     * @return Element with the new database ID set
+     * @return True: The element was updated, False: The element could not be updated
      */
-    private <S extends StoreAble> S update(S element, SQLiteDatabase database) {
+    private boolean update(StoreAble element, long parentId, SQLiteDatabase database) {
+        final int rows = database.update(information.name, getStoreAbleValues(element, element.getId(), parentId), ID_EQUALS, new String[]{String.valueOf(element.getId())});
+        database.close();
+        return rows > 0;
+    }
+
+    /**
+     * Prepares the values of a StoreAble into a ContentValues container
+     * @param element Element to be stored
+     * @param elementId ID of the element, -1 if the field should be left empty
+     * @param parentId ID of the parent, -1 if the field should be left empty
+     * @return All storable data as ContentValues container
+     * @see ContentValues
+     */
+    private static ContentValues getStoreAbleValues(StoreAble element, long elementId, long parentId) {
         ContentValues values = new ContentValues();
         element.exportToDatabase(values);
-        values.put(TableInformation.DatabaseField.ID, element.getId());
-        database.update(information.name, values, ID_EQUALS, new String[]{String.valueOf(element.getId())});
-        database.close();
 
-        return element;
+        if(elementId >= 0) {
+            values.put(TableInformation.DatabaseField.ID, elementId);
+        }
+
+        if(parentId >= 0) {
+            values.put(TableInformation.DatabaseField.PARENT_ID, parentId);
+        }
+
+        return values;
     }
 
     /**

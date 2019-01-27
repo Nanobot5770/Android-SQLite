@@ -8,20 +8,36 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.thomasdreja.tools.sqlitestoreable;
+package de.thomasdreja.tools.sqlitestoreable.impl;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import de.thomasdreja.tools.sqlitestoreable.template.SQLiteTable;
+import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
+import de.thomasdreja.tools.sqlitestoreable.template.TableInformation;
+
 /**
  * This class extends the database storage capabilities of the basic StoreAble to include Parcel support for Android.
  * It contains a constructor for Parcels, Databases
  * and an empty default constructor that should be used to create an empty object before adding it to the database.
- * @see SQLiteTable#save(StoreAble, SQLiteDatabase, Class)
+ * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
  */
 public abstract class ParcelStoreAble implements StoreAble, Parcelable {
+
+    /**
+     * ID of the StoreAble, invalid id if not yet added to database
+     * @see StoreAble#INVALID_ID
+     */
+    protected long id;
+
+    /**
+     * ID of a parent StoreAble, invalid id if none exists
+     * @see StoreAble#INVALID_ID
+     */
+    protected long relatedId;
 
     /**
      * Creates a new StoreAble based upon the data stored in the Parcel
@@ -29,6 +45,7 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
      */
     protected ParcelStoreAble(Parcel in) {
         setId(in.readLong());
+        setRelatedId(in.readLong());
     }
 
     /**
@@ -37,7 +54,7 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
      * @see TableInformation#read(Cursor, Class)
      * @see SQLiteTable#get(long, SQLiteDatabase, Class)
      */
-    public ParcelStoreAble(Cursor cursor) {
+    protected ParcelStoreAble(Cursor cursor) {
         this();
     }
 
@@ -46,7 +63,8 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
      * Use this constructor to create new instances before saving them into the database
      */
     public ParcelStoreAble() {
-        setId(-1);
+        setId(INVALID_ID);
+        setRelatedId(INVALID_ID);
     }
 
     @Override
@@ -57,5 +75,26 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
     @Override
     public void writeToParcel(Parcel parcel, int i) {
         parcel.writeLong(getId());
+        parcel.writeLong(getRelatedId());
+    }
+
+    @Override
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    @Override
+    public void setRelatedId(long relatedId) {
+        this.relatedId = relatedId;
+    }
+
+    @Override
+    public long getId() {
+        return id;
+    }
+
+    @Override
+    public long getRelatedId() {
+        return relatedId;
     }
 }

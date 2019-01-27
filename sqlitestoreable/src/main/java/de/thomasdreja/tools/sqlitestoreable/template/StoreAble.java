@@ -8,7 +8,7 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.thomasdreja.tools.sqlitestoreable;
+package de.thomasdreja.tools.sqlitestoreable.template;
 
 import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
@@ -22,6 +22,13 @@ import android.database.sqlite.SQLiteDatabase;
 public interface StoreAble {
 
     /**
+     * Whenever an object is not added to the database, it MUST have this value set as its ID
+     * @see StoreAble#setId(long)
+     * @see StoreAble#getId()
+     */
+    long INVALID_ID = -1;
+
+    /**
      * Returns the database ID of the StoreAble. Used to update and store the element.
      * @return Database ID, or -1 if no valid ID was set
      */
@@ -33,6 +40,22 @@ public interface StoreAble {
      * @see SQLiteTable
      */
     void setId(long id);
+
+    /**
+     * Returns the reference to the parent collection, if there is any. Invalid ID if no parent is set
+     * @return ID of the parent collection, Invalid ID if not is set
+     * @see StoreAbleCollection
+     * @see StoreAble#INVALID_ID
+     */
+    long getRelatedId();
+
+    /**
+     * Sets the reference to the parent collection. To remove any reference, set the ID to invalid ID.
+     * @param id ID of the parent collection, Invalid ID to remove reference
+     * @see StoreAbleCollection
+     * @see StoreAble#INVALID_ID
+     */
+    void setRelatedId(long id);
 
     /**
      * Exports the objects values into the given ContentValues container so that they may be stored in the database.

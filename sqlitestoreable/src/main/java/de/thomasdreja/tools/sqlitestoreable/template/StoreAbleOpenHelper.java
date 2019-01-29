@@ -40,6 +40,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     protected final HashMap<Class<? extends StoreAble>,SQLiteTable> tableMap;
 
     /**
+     * Application context, set via constructor
+     */
+    protected final Context context;
+
+    /**
      * Creates a new database based on the application context, name and version.
      * Also fills in all SQLiteTables based upon the given helpers.
      * @param context Application context for the database
@@ -51,6 +56,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      */
     public StoreAbleOpenHelper(Context context, String name, int version, TableInformation... tables) {
         super(context, name, null, version);
+        this.context = context;
         tableMap = new HashMap<>();
 
         for (TableInformation helper : tables) {

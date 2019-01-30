@@ -114,7 +114,7 @@ public class DatabaseColumn {
      * @see SQLiteTable
      * @see StoreAble
      */
-    static final DatabaseColumn COLUMN_ID = new DatabaseColumn("INTEGER PRIMARY KEY", ID);
+    static final DatabaseColumn COLUMN_ID = new DatabaseColumn(ID, "INTEGER PRIMARY KEY");
 
     static final DatabaseColumn COLUMN_RELATED_ID = DatabaseColumn.newIntColumn(RELATED_ID);
 
@@ -124,7 +124,7 @@ public class DatabaseColumn {
      * @return A new field with the given name and the string type
      */
     public static DatabaseColumn newStringColumn(String name) {
-        return new DatabaseColumn("TEXT", name);
+        return new DatabaseColumn(name, "TEXT");
     }
 
     /**
@@ -133,7 +133,7 @@ public class DatabaseColumn {
      * @return A new field with the given name and integer/long type
      */
     public static DatabaseColumn newIntColumn(String name) {
-            return new DatabaseColumn("INTEGER", name);
+            return new DatabaseColumn(name, "INTEGER");
     }
 
     /**
@@ -142,7 +142,7 @@ public class DatabaseColumn {
      * @return A new field with the given name and float or double type
      */
     public static DatabaseColumn newFloatColumn(String name) {
-        return new DatabaseColumn("REAL", name);
+        return new DatabaseColumn(name, "REAL");
     }
 
     /**
@@ -152,6 +152,6 @@ public class DatabaseColumn {
      * @see java.io.Serializable
      */
     public static DatabaseColumn newBinaryColumn(String name) {
-        return new DatabaseColumn("BLOB", name);
+        return new DatabaseColumn(name, "BLOB");
     }
 }

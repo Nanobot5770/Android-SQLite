@@ -81,9 +81,9 @@ public class SQLiteTable {
         builder.append(information.name);
         builder.append(" (");
         for(int i = 0; i < information.dbColumns.length; i++) {
-            builder.append(information.dbColumns[i].columnType);
-            builder.append(" ");
             builder.append(information.dbColumns[i].name);
+            builder.append(" ");
+            builder.append(information.dbColumns[i].columnType);
             if(i != (information.dbColumns.length-1)) {
                 builder.append(",");
             }

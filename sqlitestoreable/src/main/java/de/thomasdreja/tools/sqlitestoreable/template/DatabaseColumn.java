@@ -1,5 +1,7 @@
 package de.thomasdreja.tools.sqlitestoreable.template;
 
+import android.database.Cursor;
+
 /**
  * This class represents a field within a SQLite table. Each field has a name as identifier and a fixed field type.
  * The static construction method ensures that only valid types are available
@@ -91,6 +93,10 @@ public class DatabaseColumn {
 
     public String where(CompareOperation operation) {
         return String.format(operation.query, name);
+    }
+
+    public int getColumnIndex(Cursor cursor) {
+        return cursor.getColumnIndex(name);
     }
 
     /**

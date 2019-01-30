@@ -154,7 +154,26 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     }
 
     /**
-     *
+     * Returns all elements that match one of the given ids
+     * @param ids IDs to be matched
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param <S> Class of the element
+     * @return A collection of all elements with matching ids currently in the table as objects of class S
+     */
+    public <S extends StoreAble> Collection<S> getAll(long[] ids, Class<S> storageClass) {
+        StringBuilder builder = new StringBuilder("(");
+        for(int i=0; i < ids.length; i++) {
+            builder.append(ids[i]);
+            if(i < ids.length-1) {
+                builder.append(", ");
+            }
+        }
+        builder.append(")");
+        return getWhere(DatabaseColumn.COLUMN_ID, DatabaseColumn.CompareOperation.IN, builder.toString(), storageClass);
+    }
+
+    /**
+     * Returns all elements that match the given criteria
      * @param column Column in table that will be compared
      * @param comparison Which type of comparison should be used?
      * @param value Value to be compared to the column
@@ -217,6 +236,23 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      */
     public <S extends StoreAble, C extends StoreAbleCollection<S>> Collection<C> getAll(Class<C> collectionClass, Class<S> relatedClass) {
         Collection<C> allCollections = getAll(collectionClass);
+        for(C element : allCollections) {
+            fillCollection(element, relatedClass);
+        }
+        return allCollections;
+    }
+
+    /**
+     * Returns all elements that match one of the given ids
+     * @param ids IDs to be matched
+     * @param collectionClass Collection Class object used to identify the database table and for casting
+     * @param relatedClass Related Class object used to identify the database table and for casting
+     * @param <S> Related Element Class
+     * @param <C> Collection Class
+     * @return A collection of all matching elements currently in the table as objects of class S, with all related elements
+     */
+    public <S extends StoreAble, C extends StoreAbleCollection<S>> Collection<C> getAll(long[] ids, Class<C> collectionClass, Class<S> relatedClass) {
+        Collection<C> allCollections = getAll(ids, collectionClass);
         for(C element : allCollections) {
             fillCollection(element, relatedClass);
         }

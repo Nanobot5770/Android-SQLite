@@ -15,52 +15,52 @@ public class DatabaseColumn {
         /**
          * Field = Value
          */
-        EQUAL("%s = ?"),
+        EQUAL("%s =?"),
 
         /**
          * Field != Value
          */
-        NOT_EQUAL("%s != ?"),
+        NOT_EQUAL("%s !=?"),
 
         /**
          * Field LIKE Value
          */
-        LIKE("%s LIKE ?"),
+        LIKE("%s LIKE?"),
 
         /**
          * Field NOT LIKE Value
          */
-        NOT_LIKE("%s NOT LIKE ?"),
+        NOT_LIKE("%s NOT LIKE?"),
 
         /**
          * Field < Value
          */
-        LESS("%s < ?"),
+        LESS("%s <?"),
 
         /**
          * Field > Value
          */
-        GREATER("%s > ?"),
+        GREATER("%s >?"),
 
         /**
          * Field <= Value
          */
-        LESS_EQUAL("%s <= ?"),
+        LESS_EQUAL("%s <=?"),
 
         /**
          * Field >= Value
          */
-        GREATER_EQUAL("%s >= ?"),
+        GREATER_EQUAL("%s >=?"),
 
         /**
          * Field IN Value(s)
          */
-        IN("%s IN ?"),
+        IN("%s IN?"),
 
         /**
          * Field NOT IN Value(s)
          */
-        NOT_IN("%s NOT IN ?");
+        NOT_IN("%s NOT IN?");
 
         final String query;
 

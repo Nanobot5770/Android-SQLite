@@ -8,64 +8,82 @@ import android.database.Cursor;
  */
 public class DatabaseColumn {
 
-    /**
-     * This enum provides comparison operations for the SQL WHERE clause to compare a database field with a given value
-     */
-    public enum CompareOperation {
-        /**
-         * Field = Value
-         */
-        EQUAL("%s =?"),
+    public static class Comparison {
 
-        /**
-         * Field != Value
-         */
-        NOT_EQUAL("%s !=?"),
+        final String where;
+        final String value;
 
-        /**
-         * Field LIKE Value
-         */
-        LIKE("%s LIKE?"),
+        private Comparison(DatabaseColumn column, String operator, String value) {
+            this.where = String.format(operator, column.name);
+            this.value = value;
+        }
 
-        /**
-         * Field NOT LIKE Value
-         */
-        NOT_LIKE("%s NOT LIKE?"),
+        String[] array() {
+            return new String[] {value};
+        }
 
-        /**
-         * Field < Value
-         */
-        LESS("%s <?"),
+        public static Comparison equalsId(StoreAble storeAble) {
+            return equalsId(storeAble.getId());
+        }
 
-        /**
-         * Field > Value
-         */
-        GREATER("%s >?"),
+        static Comparison equalsId(long id) {
+            return equals(DatabaseColumn.COLUMN_ID, id);
+        }
 
-        /**
-         * Field <= Value
-         */
-        LESS_EQUAL("%s <=?"),
+        public static Comparison equalsRelatedId(StoreAbleCollection collection) {
+            return equals(DatabaseColumn.COLUMN_RELATED_ID, collection.getId());
+        }
 
-        /**
-         * Field >= Value
-         */
-        GREATER_EQUAL("%s >=?"),
+        public static Comparison equals(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s =?", String.valueOf(value));
+        }
 
-        /**
-         * Field IN Value(s)
-         */
-        IN("%s IN?"),
+        public static Comparison notEquals(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s !=?", String.valueOf(value));
+        }
 
-        /**
-         * Field NOT IN Value(s)
-         */
-        NOT_IN("%s NOT IN?");
+        public static Comparison less(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s <?", String.valueOf(value));
+        }
 
-        final String query;
+        public static Comparison lessEqual(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s <=?", String.valueOf(value));
+        }
 
-        CompareOperation(String query) {
-            this.query = query;
+        public static Comparison greater(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s <?", String.valueOf(value));
+        }
+
+        public static Comparison greaterEqual(DatabaseColumn column, Object value) {
+            return new Comparison(column, "%s <=?", String.valueOf(value));
+        }
+    }
+
+    static class Query {
+        final String where;
+        final String[] values;
+
+        Query(boolean and, Comparison... comparisons) {
+            StringBuilder builder = new StringBuilder();
+            values = new String[comparisons.length];
+
+            for(int i=0; i < comparisons.length; i++) {
+                if(i > 0) {
+                    if(and) {
+                        builder.append(" AND ");
+                    } else {
+                        builder.append(" OR ");
+                    }
+                }
+                builder.append(comparisons[i].where);
+                values[i] = comparisons[i].value;
+            }
+
+            where = builder.toString();
+        }
+
+        boolean isValid() {
+            return values.length > 0;
         }
     }
 
@@ -87,12 +105,8 @@ public class DatabaseColumn {
      * @param type Type of the database field (must be a valid SQLite type)
      */
     private DatabaseColumn(String name, String type) {
-        this.name = name;
+        this.name = name.replaceAll("[^a-zA-Z]", "");
         this.columnType = type;
-    }
-
-    public String where(CompareOperation operation) {
-        return String.format(operation.query, name);
     }
 
     public int getColumnIndex(Cursor cursor) {

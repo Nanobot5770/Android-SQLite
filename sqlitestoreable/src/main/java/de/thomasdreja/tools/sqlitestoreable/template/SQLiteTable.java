@@ -13,7 +13,6 @@ package de.thomasdreja.tools.sqlitestoreable.template;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -104,11 +103,12 @@ public class SQLiteTable {
      * @return A StoreAble containing the data for the given ID or null if no element was found
      * @see StoreAble
      */
-    <S extends StoreAble> S get(long id, SQLiteDatabase database, Class<S> storeClass) {
-        Cursor cursor = database.query(information.name, null, DatabaseColumn.COLUMN_ID.where(DatabaseColumn.CompareOperation.EQUAL), new String[]{String.valueOf(id)}, null, null, null);
+    <S extends StoreAble> S get(Class<S> storeClass, long id, SQLiteDatabase database) {
+        final DatabaseColumn.Comparison idComp = DatabaseColumn.Comparison.equalsId(id);
+        Cursor cursor = database.query(information.name, null, idComp.where, idComp.array(), null, null, null);
         S element = null;
         if(cursor.moveToFirst()) {
-            element = getNewElement(cursor, storeClass);
+            element = getNewElement(storeClass, cursor);
         }
         cursor.close();
 
@@ -118,15 +118,15 @@ public class SQLiteTable {
     /**
      * Reads all elements contained in the table
      * @param <S> Class of the elements
-     * @param database Database the elements are stored in
      * @param storeClass Class object used to identify the database table and for casting
+     * @param database Database the elements are stored in
      * @return All elements currently in the table as a list of objects of class S
      * @see StoreAble
-     * @see SQLiteTable#getList(Cursor, Class)
+     * @see SQLiteTable#getList(Class, Cursor)
      */
-    <S extends StoreAble> Collection<S> getAll(SQLiteDatabase database, Class<S> storeClass) {
+    <S extends StoreAble> Collection<S> getAll(Class<S> storeClass, SQLiteDatabase database) {
         Cursor cursor = database.query(information.name, null, null, null, null, null, null);
-        Collection<S> elements = getList(cursor, storeClass);
+        Collection<S> elements = getList(storeClass, cursor);
         cursor.close();
 
         return elements;
@@ -134,54 +134,43 @@ public class SQLiteTable {
 
     /**
      * Reads all elements contained in the table that match the given criteria.
-     * @param database Database the elements are stored in
-     * @param column Name of the database column that will be compared
-     * @param comparison Which type of comparison should be used?
-     * @param value Value to be compared to the column
      * @param storeClass Class object used to identify the database table and for casting
+     * @param database Database the elements are stored in
+     * @param and True: All comparisons have to be fulfilled, False: Only one has to be fulfilled
+     * @param comparisons Comparisons to filter the elements
      * @param <S> Class of the elements
-     * @return A collection of all elements (as objects of class S) that have a matching value in their given column
+     * @return A collection of all elements (as objects of class S) that have matching values
      * @see DatabaseColumn
      * @see StoreAble
-     * @see SQLiteTable#getList(Cursor, Class)
+     * @see SQLiteTable#getList(Class, Cursor)
      */
-    <S extends StoreAble> Collection<S> getWhere(SQLiteDatabase database, DatabaseColumn column, DatabaseColumn.CompareOperation comparison, String value, Class<S> storeClass) {
-        Cursor cursor = database.query(information.name, null, column.where(comparison), new String[]{value}, null, null, null);
-        Collection<S> elements = getList(cursor, storeClass);
-        cursor.close();
+    <S extends StoreAble> Collection<S> getWhere(Class<S> storeClass, SQLiteDatabase database, boolean and, DatabaseColumn.Comparison... comparisons) {
+        DatabaseColumn.Query mQuery = new DatabaseColumn.Query(and, comparisons);
+        if(mQuery.isValid()) {
+            Cursor cursor = database.query(information.name, null, mQuery.where, mQuery.values, null, null, null);
+            Collection<S> elements = getList(storeClass, cursor);
+            cursor.close();
 
-        return elements;
-    }
-
-    /**
-     * Reads all elements contained in the table that have a matching related ID
-     * @param database Database the elements are stored in
-     * @param relatedID ID of the related StoreAble (parent)
-     * @param storeClass Class object used to identify the database table and for casting
-     * @param <S> Class of the elements
-     * @return A collection of all elements (as objects of class S) that have a matching related ID
-     * @see StoreAble#getRelatedId()
-     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.CompareOperation, String, Class)
-     */
-    <S extends StoreAble> Collection<S> getAllRelated(SQLiteDatabase database, long relatedID, Class<S> storeClass) {
-        return getWhere(database, DatabaseColumn.COLUMN_RELATED_ID, DatabaseColumn.CompareOperation.EQUAL, String.valueOf(relatedID), storeClass);
+            return elements;
+        }
+        return new ArrayList<>();
     }
 
     /**
      * Reads all elements contained within the cursor and returns them in the given list
      * @param <S> Class of the elements
-     * @param cursor Cursor that has performed a database request
      * @param storeClass Class object used to identify the database table and for casting
+     * @param cursor Cursor that has performed a database request
      * @return  list of all elements (as objects of class S)
-     * @see SQLiteTable#getNewElement(Cursor, Class)
+     * @see SQLiteTable#getNewElement(Class, Cursor)
      * @see TableInformation#read(Cursor, Class)
      */
-    private <S extends StoreAble> Collection<S> getList(Cursor cursor, Class<S> storeClass) {
+    private <S extends StoreAble> Collection<S> getList(Class<S> storeClass, Cursor cursor) {
         ArrayList<S> list = new ArrayList<>();
 
         if(cursor.moveToFirst()) {
             do {
-                list.add(getNewElement(cursor, storeClass));
+                list.add(getNewElement(storeClass, cursor));
             } while(cursor.moveToNext());
         }
         return list;
@@ -191,12 +180,12 @@ public class SQLiteTable {
      * Reads a new element from the given cursor with the given class.
      * It uses the read function of the internal TableInformation to create the object.
      * Then the ID is read from the cursor and set for the object
-     * @param cursor Cursor that contains a row of data from a database query
-     * @param storageClass Class container of the new object
      * @param <S> Class of the object
+     * @param storageClass Class container of the new object
+     * @param cursor Cursor that contains a row of data from a database query
      * @return A new object with the given class and a valid database ID
      */
-    private <S extends StoreAble> S getNewElement(Cursor cursor, Class<S> storageClass) {
+    private <S extends StoreAble> S getNewElement(Class<S> storageClass, Cursor cursor) {
         S element = information.read(cursor, storageClass);
         element.setId(cursor.getLong(cursor.getColumnIndex(DatabaseColumn.COLUMN_ID.name)));
         element.setRelatedId(cursor.getLong(cursor.getColumnIndex(DatabaseColumn.COLUMN_RELATED_ID.name)));
@@ -247,7 +236,8 @@ public class SQLiteTable {
      * @return True: The element was updated, False: The element could not be updated
      */
     private boolean update(StoreAble element, SQLiteDatabase database) {
-        final int rows = database.update(information.name, getStoreAbleValues(element), DatabaseColumn.COLUMN_ID.where(DatabaseColumn.CompareOperation.EQUAL), new String[]{String.valueOf(element.getId())});
+        final DatabaseColumn.Comparison idComp = DatabaseColumn.Comparison.equalsId(element);
+        final int rows = database.update(information.name, getStoreAbleValues(element), idComp.where, idComp.array());
         database.close();
         return rows > 0;
     }
@@ -300,7 +290,8 @@ public class SQLiteTable {
     boolean delete(StoreAble element, SQLiteDatabase database) {
         int rows = 0;
         if(element.getId() > StoreAble.INVALID_ID) {
-            rows = database.delete(information.name, DatabaseColumn.COLUMN_ID.where(DatabaseColumn.CompareOperation.EQUAL), new String[]{String.valueOf(element.getId())});
+            final DatabaseColumn.Comparison idComp = DatabaseColumn.Comparison.equalsId(element);
+            rows = database.delete(information.name, idComp.where, idComp.array());
         }
         database.close();
 
@@ -309,16 +300,19 @@ public class SQLiteTable {
 
     /**
      * Removes all elements from the database that match the given criteria.
-     * @param column Name of the database column that will be compared
-     * @param operation Which type of comparison should be used?
-     * @param value Value to be compared to the column
      * @param database Database where the StoreAbles are stored
+     * @param and True: All comparisons have to be fulfilled, False: Only one has to be fulfilled
+     * @param comparisons Comparisons to filter the elements
      * @return The number of rows affected
      */
-    int deleteWhere(DatabaseColumn column, DatabaseColumn.CompareOperation operation, String value, SQLiteDatabase database) {
-        int rows = database.delete(information.name, column.where(operation), new String[]{value});
-        database.close();
-        return rows;
+    int deleteWhere(SQLiteDatabase database, boolean and, DatabaseColumn.Comparison... comparisons) {
+        DatabaseColumn.Query mQuery = new DatabaseColumn.Query(and, comparisons);
+        if(mQuery.isValid()) {
+            int rows = database.delete(information.name, mQuery.where, mQuery.values);
+            database.close();
+            return rows;
+        }
+        return 0;
     }
 
     /**

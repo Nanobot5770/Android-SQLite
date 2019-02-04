@@ -45,9 +45,9 @@ public abstract class TableInformation {
      * @param storageClass Requested Class container for the object to be created. Use for safety checks!
      * @param <S> Class of the object
      * @return A object of class S that contains the values from the cursor
-     * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-     * @see SQLiteTable#getAll(SQLiteDatabase, Class)
-     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.CompareOperation, String, Class)
+     * @see SQLiteTable#get(Class, long, SQLiteDatabase)
+     * @see SQLiteTable#getAll(Class, SQLiteDatabase)
+     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.Operator, String, Class)
      * @see SQLiteTable#getNewElement(Cursor, Class)
      */
     <S extends StoreAble> S read(Cursor cursor, Class<S> storageClass) {
@@ -63,9 +63,9 @@ public abstract class TableInformation {
      * The cursor will already point to the correct element, only the current row needs to be read.
      * @param cursor Cursor that contains values for 1 new element from the database
      * @return A StoreAble that contains the values from the cursor
-     * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-     * @see SQLiteTable#getAll(SQLiteDatabase, Class)
-     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.CompareOperation, String, Class)
+     * @see SQLiteTable#get(Class, long, SQLiteDatabase)
+     * @see SQLiteTable#getAll(Class, SQLiteDatabase)
+     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.Operator, String, Class)
      * @see SQLiteTable#getNewElement(Cursor, Class)
      */
     protected abstract StoreAble read(Cursor cursor);

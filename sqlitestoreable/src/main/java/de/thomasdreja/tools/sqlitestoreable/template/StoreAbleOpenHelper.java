@@ -13,11 +13,9 @@ package de.thomasdreja.tools.sqlitestoreable.template;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -77,7 +75,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
         for(SQLiteTable table : tableMap.values()) {
-            sqLiteDatabase.execSQL(String.format(DROP_TABLE_IF, table));
+            sqLiteDatabase.execSQL(String.format(DROP_TABLE_IF, table.getName()));
             sqLiteDatabase.execSQL(table.createTable());
         }
     }
@@ -126,16 +124,21 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     // region Getter
     /**
      * Reads a single element from the table for the given class with the matching id
-     * @param id ID of the element
-     * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param id ID of the element
      * @return Element as object of given class with the matching id
-     * @see SQLiteTable#get(long, SQLiteDatabase, Class)
+     * @see SQLiteTable#get(Class, long, SQLiteDatabase)
      */
-    public <S extends StoreAble> S get(long id, Class<S> storageClass) {
+    public <S extends StoreAble> S get(Class<S> storageClass, long id) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.get(id, getReadableDatabase(), storageClass);
+            S element = table.get(storageClass, id, getReadableDatabase());
+            if(element instanceof StoreAbleCollection) {
+                final StoreAbleCollection collection = (StoreAbleCollection) element;
+                fillCollection(collection.getChildClass(), collection);
+            }
+            return element;
         }
         return null;
     }
@@ -145,104 +148,66 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return A collection of all elements currently in the table as objects of class S
-     * @see SQLiteTable#getAll(SQLiteDatabase, Class)
+     * @see SQLiteTable#getAll(Class, SQLiteDatabase)
      */
     public <S extends StoreAble> Collection<S> getAll(Class<S> storageClass) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.getAll(getReadableDatabase(), storageClass);
+            final Collection<S> elements = table.getAll(storageClass, getReadableDatabase());
+            checkChildren(storageClass, elements);
+            return elements;
         }
         return new ArrayList<>();
     }
 
     /**
      * Returns all elements that match the given criteria
-     * @param column Column in table that will be compared
-     * @param comparison Which type of comparison should be used?
-     * @param value Value to be compared to the column
      * @param storageClass Class object used to identify the database table and for casting
+     * @param and True: All comparisons have to be fulfilled, False: Only one has to be fulfilled
+     * @param comparisons Comparisons to filter the elements
      * @param <S> Class of the element
      * @return A collection of all elements matching the query in the table as objects of the given class
-     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.CompareOperation, String, Class)
+     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DatabaseColumn.Comparison...)
      */
-    public <S extends StoreAble> Collection<S> getWhere(DatabaseColumn column, DatabaseColumn.CompareOperation comparison, String value, Class<S> storageClass) {
+    public <S extends StoreAble> Collection<S> getWhere(Class<S> storageClass, boolean and, DatabaseColumn.Comparison... comparisons) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.getWhere(getReadableDatabase(), column, comparison, value, storageClass);
+            final Collection<S> elements = table.getWhere(storageClass, getReadableDatabase(), and, comparisons);
+            checkChildren(storageClass, elements);
+            return elements;
         }
         return new ArrayList<>();
     }
 
-    // endregion
-
-    // region Collection Getter
+    /**
+     * Checks whether the elements in the given collection could contain child objects and adds those if necessary
+     * @param <S> Class of the element
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param elements A collection of elements that may potentially have children attached to each of them
+     */
+    private <S extends StoreAble> void checkChildren(Class<S> storageClass, Collection<S> elements) {
+        if(StoreAbleCollection.class.isAssignableFrom(storageClass)) {
+            for(S element : elements) {
+                StoreAbleCollection collection = (StoreAbleCollection) element;
+                fillCollection(collection.getChildClass(), collection);
+            }
+        }
+    }
 
     /**
      * Reads all related elements from the database the fit into the given collection.
+     * @param <S> Related Element Class
+     * @param <C> Collection Class
+     * @param relatedClass Related Class object used to identify the database table and for casting
      * @param collection Collection to be filled with related elements
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
      * @return The given collection with all related elements add to it
-     * @see SQLiteTable#getAllRelated(SQLiteDatabase, long, Class)
+     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DatabaseColumn.Comparison...)
+     * @see de.thomasdreja.tools.sqlitestoreable.template.DatabaseColumn.Comparison#equalsRelatedId(StoreAbleCollection)
      */
-    private <S extends StoreAble, C extends StoreAbleCollection<S>> C fillCollection(C collection, Class<S> relatedClass) {
-        final SQLiteTable table = getTableFor(relatedClass);
-        if(collection != null && table != null) {
-            collection.setCollection(table.getAllRelated(getReadableDatabase(), collection.getId(), relatedClass));
+    private <S extends StoreAble, C extends StoreAbleCollection<S>> void fillCollection(Class<S> relatedClass, C collection) {
+        if(collection != null) {
+            collection.setCollection(getWhere(relatedClass, true, DatabaseColumn.Comparison.equalsRelatedId(collection)));
         }
-        return collection;
-    }
-
-    /**
-     * Reads a single element from the table for the given class with the matching id. Also fills in all related elements to the collection.
-     * @param id ID of the collection
-     * @param collectionClass Collection Class object used to identify the database table and for casting
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return Element as object of given class with the matching id, with all related elements
-     * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> C get(long id, Class<C> collectionClass, Class<S> relatedClass) {
-        return fillCollection(get(id, collectionClass), relatedClass);
-    }
-
-    /**
-     * Reads all elements contained in the table for the given class. Also fills in all related elements to the collection.
-     * @param collectionClass Collection Class object used to identify the database table and for casting
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return A collection of all elements currently in the table as objects of class S, with all related elements
-     * @see SQLiteTable#getAll(SQLiteDatabase, Class)
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> Collection<C> getAll(Class<C> collectionClass, Class<S> relatedClass) {
-        Collection<C> allCollections = getAll(collectionClass);
-        for(C element : allCollections) {
-            fillCollection(element, relatedClass);
-        }
-        return allCollections;
-    }
-
-    /**
-     * Reads all elements contained in the table for the given class that match the given criteria. Also fills in all related elements to the collection.
-     * @param column Column in table that will be compared
-     * @param comparison Which type of comparison should be used?
-     * @param value Value to be compared to the column
-     * @param collectionClass Collection Class object used to identify the database table and for casting
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return A collection of all elements matching the query in the table as objects of the given class, with all related elements
-     * @see SQLiteTable#getWhere(SQLiteDatabase, DatabaseColumn, DatabaseColumn.CompareOperation, String, Class)
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> Collection<C> getWhere(DatabaseColumn column, DatabaseColumn.CompareOperation comparison, String value, Class<C> collectionClass, Class<S> relatedClass) {
-        Collection<C> allCollections = getWhere(column, comparison, value, collectionClass);
-        for(C element : allCollections) {
-            fillCollection(element, relatedClass);
-        }
-        return allCollections;
     }
 
     // endregion
@@ -251,79 +216,53 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     /**
      * Stores a StoreAble object within the database. If it has an ID, the existing data set will be updated,
      * otherwise a new set will be added and the new ID will be set in the StoreAble
-     * @param element  Element to be saved into the database
-     * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param element  Element to be saved into the database
      * @return True: The element was saved, False: The element could not be saved
      * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
      */
-    public <S extends StoreAble> boolean save(StoreAble element, Class<S> storageClass) {
+    public <S extends StoreAble> boolean save(Class<S> storageClass, StoreAble element) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.save(element, getWritableDatabase());
+            boolean success = table.save(element, getWritableDatabase());
+            if(success && element instanceof StoreAbleCollection) {
+                final StoreAbleCollection collection = (StoreAbleCollection) element;
+                success = saveAll(collection.getChildClass(), collection.getCollection(), collection.getId());
+            }
+            return success;
         }
         return false;
     }
 
     /**
      * Stores all given StoreAbles within the database. Will also add IDs if necessary.
-     * @param elements List of StoreAbles that needs to be stored
-     * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param elements List of StoreAbles that needs to be stored
      * @return True: all elements were saved, False: Not all elements could be saved
      * @see SQLiteTable#saveAll(Collection, SQLiteDatabase)
      */
-    public <S extends StoreAble> boolean saveAll(Collection<S> elements, Class<S> storageClass) {
+    public <S extends StoreAble> boolean saveAll(Class<S> storageClass, Collection<S> elements) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
-            return table.saveAll(elements, getWritableDatabase());
+            boolean success = table.saveAll(elements, getWritableDatabase());
+            if(success && StoreAbleCollection.class.isAssignableFrom(storageClass)) {
+                for(S element : elements) {
+                    StoreAbleCollection collection = (StoreAbleCollection) element;
+                    success = saveAll(collection.getChildClass(), collection.getCollection(), collection.getId()) && success;
+                }
+            }
+            return success;
         }
         return false;
     }
 
-    // endregion
-
-    // region Collection Setter / Saver
-
-    /**
-     * Stores a Collection object within the database. If it has an ID, the existing data set will be updated,
-     * otherwise a new set will be added and the new ID will be set in the Collection. This process will also be repeated for all included related elements.
-     * @param collection Collection to be saved into the database
-     * @param collectionClass Collection Class object used to identify the database table and for casting
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return True: The element was saved, False: The element could not be saved
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> boolean save(C collection, Class<C> collectionClass, Class<S> relatedClass) {
-        boolean success = save(collection, collectionClass);
-
-        if(success) {
-            for(S related : collection.getCollection()) {
-                success = save(related, relatedClass) && success;
-            }
+    private <S extends StoreAble> boolean saveAll(Class<S> storageClass, Collection<S> elements, long relatedId) {
+        for(S element : elements) {
+            element.setRelatedId(relatedId);
         }
-
-        return success;
-    }
-
-    /**
-     * Stores all given Collections and their related elements within the database. Will also add IDs if necessary.
-     * @param collections All collections to be saved into the database
-     * @param collectionClass Collection Class object used to identify the database table and for casting
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return True: all elements were saved, False: Not all elements could be saved
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> boolean saveAll(Collection<C> collections, Class<C> collectionClass, Class<S> relatedClass) {
-        boolean success = true;
-
-        for(C collection : collections) {
-            success = save(collection, collectionClass, relatedClass) && success;
-        }
-
-        return success;
+        return saveAll(storageClass, elements);
     }
 
     // endregion
@@ -332,35 +271,35 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
 
     /**
      * Removes a StoreAble from the database. If the StoreAble doesn't exist, no action will be performed.
-     * @param element Element to be deleted from the database
-     * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param element Element to be deleted from the database
      * @return True: Element was deleted, False: Element did not exist in database (no deletion necessary)
      * @see SQLiteTable#delete(StoreAble, SQLiteDatabase)
      */
-    public <S extends StoreAble> boolean delete(StoreAble element, Class<S> storageClass) {
+    public <S extends StoreAble> boolean delete(Class<S> storageClass, StoreAble element) {
         final SQLiteTable table = tableMap.get(storageClass);
-        return table != null
+        final boolean success = table != null
                 && storageClass.isInstance(element)
                 && table.delete(element, getWritableDatabase());
-    }
 
-    /**
-     * Removes a Collection and its related StoreAbles from the database.
-     * @param collection Collection to be deleted
-     * @param collectionClass Collection to be filled with related elements
-     * @param relatedClass Related Class object used to identify the database table and for casting
-     * @param <S> Related Element Class
-     * @param <C> Collection Class
-     * @return True: Collection and related elements were deleted, False: Deletion was not successful
-     */
-    public <S extends StoreAble, C extends StoreAbleCollection<S>> boolean delete(StoreAbleCollection<S> collection, Class<C> collectionClass, Class<S> relatedClass) {
-        final SQLiteTable table = tableMap.get(relatedClass);
-        if(delete(collection, collectionClass) && table != null) {
-            return collection.getCollection().size() ==
-                    table.deleteWhere(DatabaseColumn.COLUMN_RELATED_ID, DatabaseColumn.CompareOperation.EQUAL, String.valueOf(collection.getId()), getWritableDatabase());
+        if(success && element instanceof StoreAbleCollection) {
+            final StoreAbleCollection collection = (StoreAbleCollection) element;
+            return deleteAll(collection.getChildClass(), collection.getCollection());
         }
 
+        return success;
+    }
+
+    public <S extends StoreAble> boolean deleteAll(Class<S> storageClass, Collection<S> elements) {
+        final SQLiteTable table = tableMap.get(storageClass);
+        if(table != null) {
+            boolean success = true;
+            for(S element : elements) {
+                success = delete(storageClass, element) && success;
+            }
+            return success;
+        }
         return false;
     }
 

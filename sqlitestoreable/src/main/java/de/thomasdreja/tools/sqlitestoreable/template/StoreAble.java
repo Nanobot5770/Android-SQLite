@@ -26,7 +26,7 @@ public interface StoreAble {
      * @see StoreAble#setId(long)
      * @see StoreAble#getId()
      */
-    long INVALID_ID = -1;
+    long INVALID_ID = 0;
 
     /**
      * Returns the database ID of the StoreAble. Used to update and store the element.

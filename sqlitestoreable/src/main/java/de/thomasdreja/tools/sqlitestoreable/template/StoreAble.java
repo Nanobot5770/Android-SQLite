@@ -10,16 +10,19 @@
 
 package de.thomasdreja.tools.sqlitestoreable.template;
 
-import android.content.ContentValues;
-import android.database.sqlite.SQLiteDatabase;
+import de.thomasdreja.tools.sqlitestoreable.reflection.StoreAbleField;
 
 /**
  * This interface provides the most basic methods to allow for storing objects into a SQLite database.
  * Any implementation should also provide a TableInformation to interconnect with the SQLiteTable
- * @see TableInformation
+ * @see de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation
  * @see SQLiteTable
  */
 public interface StoreAble {
+
+    String ID = "storeAbleId";
+
+    String RELATED_ID = "storeAbleRelatedID";
 
     /**
      * Whenever an object is not added to the database, it MUST have this value set as its ID
@@ -32,6 +35,7 @@ public interface StoreAble {
      * Returns the database ID of the StoreAble. Used to update and store the element.
      * @return Database ID, or -1 if no valid ID was set
      */
+    @StoreAbleField(fieldName = ID)
     long getId();
 
     /**
@@ -39,6 +43,7 @@ public interface StoreAble {
      * @param id New database ID of the StoreAble or -1 to invalidate the ID
      * @see SQLiteTable
      */
+    @StoreAbleField(fieldName = ID)
     void setId(long id);
 
     /**
@@ -47,6 +52,7 @@ public interface StoreAble {
      * @see StoreAbleCollection
      * @see StoreAble#INVALID_ID
      */
+    @StoreAbleField(fieldName = RELATED_ID)
     long getRelatedId();
 
     /**
@@ -55,13 +61,7 @@ public interface StoreAble {
      * @see StoreAbleCollection
      * @see StoreAble#INVALID_ID
      */
+    @StoreAbleField(fieldName = RELATED_ID)
     void setRelatedId(long id);
-
-    /**
-     * Exports the objects values into the given ContentValues container so that they may be stored in the database.
-     * @param databaseValues Empty ContentValues container, can be passed down the hierarchy.
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
-     */
-    void exportToDatabase(ContentValues databaseValues);
 
 }

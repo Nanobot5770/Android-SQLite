@@ -3,6 +3,7 @@ package de.thomasdreja.tools.sqlitestoreable.impl;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
 
 /**

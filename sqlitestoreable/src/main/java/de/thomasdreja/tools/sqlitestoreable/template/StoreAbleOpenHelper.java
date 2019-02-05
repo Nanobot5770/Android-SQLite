@@ -19,6 +19,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Set;
 
+import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
+
 /**
  * This class extends the Android SQLiteOpenHelper to allow for direct integration with the StoreAble system.
  * It provides all tools to create, read and write a database with one or more SQLiteTables
@@ -37,7 +39,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     /**
      * Hashmap containing all tables of the database, indexed by table name
      */
-    protected final HashMap<Class<? extends StoreAble>,SQLiteTable> tableMap;
+    protected final HashMap<Class<?>,SQLiteTable> tableMap;
 
     /**
      * Application context, set via constructor
@@ -60,8 +62,12 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
         tableMap = new HashMap<>();
 
         for (TableInformation helper : tables) {
-            tableMap.put(helper.storageClass, new SQLiteTable(helper));
+            tableMap.put(helper.getStorageClass(), new SQLiteTable(helper));
         }
+    }
+
+    public StoreAbleOpenHelper(Context context, String name, int version, Class<?>... classes) {
+        this(context, name, version, TableInformation.createInformation(classes));
     }
 
 
@@ -84,7 +90,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * Returns the names of all tables in the database
      * @return Set with all Class objects used to identify the database tables
      */
-    public Set<Class<? extends StoreAble>> getAllTableClasses() {
+    public Set<Class<?>> getAllTableClasses() {
         return tableMap.keySet();
     }
 
@@ -93,7 +99,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table
      * @return True: Table exists in database, False: Table not found
      */
-    public boolean hasTable(Class<? extends StoreAble> storageClass) {
+    public boolean hasTable(Class<?> storageClass) {
         return tableMap.containsKey(storageClass);
     }
 
@@ -111,12 +117,12 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table
      * @return
      */
-    public DatabaseColumn[] getColumnsFor(Class<? extends StoreAble> storageClass) {
+    public TableInformation.DbColumn[] getColumnsFor(Class<? extends StoreAble> storageClass) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
             return table.getColumns();
         }
-        return new DatabaseColumn[0];
+        return new TableInformation.DbColumn[0];
     }
 
     // endregion
@@ -167,9 +173,9 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param comparisons Comparisons to filter the elements
      * @param <S> Class of the element
      * @return A collection of all elements matching the query in the table as objects of the given class
-     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DatabaseColumn.Comparison...)
+     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DbComparison...)
      */
-    public <S extends StoreAble> Collection<S> getWhere(Class<S> storageClass, boolean and, DatabaseColumn.Comparison... comparisons) {
+    public <S extends StoreAble> Collection<S> getWhere(Class<S> storageClass, boolean and, DbComparison... comparisons) {
         final SQLiteTable table = tableMap.get(storageClass);
         if(table != null) {
             final Collection<S> elements = table.getWhere(storageClass, getReadableDatabase(), and, comparisons);
@@ -201,12 +207,12 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param relatedClass Related Class object used to identify the database table and for casting
      * @param collection Collection to be filled with related elements
      * @return The given collection with all related elements add to it
-     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DatabaseColumn.Comparison...)
-     * @see de.thomasdreja.tools.sqlitestoreable.template.DatabaseColumn.Comparison#equalsRelatedId(StoreAbleCollection)
+     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DbComparison[])
+     * @see DbComparison#equalsRelatedId(StoreAbleCollection)
      */
     private <S extends StoreAble, C extends StoreAbleCollection<S>> void fillCollection(Class<S> relatedClass, C collection) {
         if(collection != null) {
-            collection.setCollection(getWhere(relatedClass, true, DatabaseColumn.Comparison.equalsRelatedId(collection)));
+            collection.setCollection(getWhere(relatedClass, true, DbComparison.equalsRelatedId(collection)));
         }
     }
 

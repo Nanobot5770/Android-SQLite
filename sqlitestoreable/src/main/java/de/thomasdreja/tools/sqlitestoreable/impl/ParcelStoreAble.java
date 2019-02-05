@@ -10,14 +10,13 @@
 
 package de.thomasdreja.tools.sqlitestoreable.impl;
 
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
 import de.thomasdreja.tools.sqlitestoreable.template.SQLiteTable;
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
-import de.thomasdreja.tools.sqlitestoreable.template.TableInformation;
 
 /**
  * This class extends the database storage capabilities of the basic StoreAble to include Parcel support for Android.
@@ -31,13 +30,13 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
      * ID of the StoreAble, invalid id if not yet added to database
      * @see StoreAble#INVALID_ID
      */
-    protected long id;
+    private long id;
 
     /**
      * ID of a parent StoreAble, invalid id if none exists
      * @see StoreAble#INVALID_ID
      */
-    protected long relatedId;
+    private long relatedId;
 
     /**
      * Creates a new StoreAble based upon the data stored in the Parcel
@@ -46,16 +45,6 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
     protected ParcelStoreAble(Parcel in) {
         setId(in.readLong());
         setRelatedId(in.readLong());
-    }
-
-    /**
-     * Creates a new StoreAble object based upon the data contained in the given cursor
-     * @param cursor Cursor containing data from the database
-     * @see TableInformation#read(Cursor, Class)
-     * @see SQLiteTable#get(long, SQLiteDatabase, Class)
-     */
-    protected ParcelStoreAble(Cursor cursor) {
-        this();
     }
 
     /**

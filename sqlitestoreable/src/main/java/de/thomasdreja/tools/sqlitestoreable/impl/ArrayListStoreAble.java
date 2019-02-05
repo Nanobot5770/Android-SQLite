@@ -1,35 +1,16 @@
 package de.thomasdreja.tools.sqlitestoreable.impl;
 
-import android.content.ContentValues;
-import android.database.Cursor;
-
 import java.util.ArrayList;
 import java.util.Collection;
 
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAbleCollection;
-import de.thomasdreja.tools.sqlitestoreable.template.TableInformation;
 
 /**
  * This class extends the default ArrayList and allows this list to be stored within the database.
  * @param <S> Class of the stored child objects
  */
-public class ArrayListStoreAble<S extends StoreAble> extends ArrayList<S> implements StoreAbleCollection<S> {
-
-    /**
-     * Creates a new TableInformation object for an ArrayListStoreAble that contains the given class of child objects.
-     * @param childClass Class object of the stored child objects
-     * @param <S> Class of the stored child objects
-     * @return A new TableInformation for a ArrayListStoreAble
-     */
-    public static <S extends StoreAble> TableInformation createTableInfo(final Class<S> childClass) {
-        return new TableInformation(ArrayListStoreAble.class) {
-            @Override
-            protected StoreAble read(Cursor cursor) {
-                return new ArrayListStoreAble<>(childClass);
-            }
-        };
-    }
+public abstract class ArrayListStoreAble<S extends StoreAble> extends ArrayList<S> implements StoreAbleCollection<S> {
 
     /**
      * Class of the stored child objects
@@ -40,19 +21,19 @@ public class ArrayListStoreAble<S extends StoreAble> extends ArrayList<S> implem
      * ID of the StoreAble, invalid id if not yet added to database
      * @see StoreAble#INVALID_ID
      */
-    protected long id;
+    long id;
 
     /**
      * ID of a parent StoreAble, invalid id if none exists
      * @see StoreAble#INVALID_ID
      */
-    protected long relatedId;
+    long relatedId;
 
     /**
      * Creates a new, empty list that children can be attached to
      * @param storedClass Class of the stored child objects
      */
-    public ArrayListStoreAble(Class<S> storedClass) {
+    protected ArrayListStoreAble(Class<S> storedClass) {
         super();
         this.storedClass = storedClass;
         this.id = INVALID_ID;
@@ -96,10 +77,6 @@ public class ArrayListStoreAble<S extends StoreAble> extends ArrayList<S> implem
     @Override
     public void setRelatedId(long id) {
         this.relatedId = id;
-    }
-
-    @Override
-    public void exportToDatabase(ContentValues databaseValues) {
     }
 
     @Override

@@ -135,32 +135,34 @@ public enum ContentType {
                 return true;
             }
         }
-        return false;
+        return type == BINARY;
     }
 
     public static byte[] serialize(Object object) {
-        byte[] result = new byte[0];
         ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
         try {
             ObjectOutputStream objectStream = new ObjectOutputStream(byteOutput);
             objectStream.writeObject(object);
-            result = byteOutput.toByteArray();
+            byte[] result = byteOutput.toByteArray();
             byteOutput.close();
+            return result;
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return result;
+        return new byte[0];
     }
 
     public static Object deserialize(byte[] bytes) {
-        try {
-            ByteArrayInputStream byteInput = new ByteArrayInputStream(bytes);
-            ObjectInputStream objectStream = new ObjectInputStream(byteInput);
-            Object object = objectStream.readObject();
-            objectStream.close();
-            return object;
-        } catch (ClassNotFoundException | IOException e) {
-            e.printStackTrace();
+        if(bytes != null && bytes.length > 0) {
+            try {
+                ByteArrayInputStream byteInput = new ByteArrayInputStream(bytes);
+                ObjectInputStream objectStream = new ObjectInputStream(byteInput);
+                Object object = objectStream.readObject();
+                objectStream.close();
+                return object;
+            } catch (ClassNotFoundException | IOException e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

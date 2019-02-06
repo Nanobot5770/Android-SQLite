@@ -3,13 +3,13 @@ package de.thomasdreja.tools.sqlitestoreable.impl;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
 
 /**
  * This abstract class extends the default ArrayListStoreAble to allow it to be sent via Parcels in Android. Child objects therefore must also be Parcelable
  * @param <P> Class of the child objects, must both implement StoreAble and Parcelable
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public abstract class ParcelListStoreAble<P extends StoreAble & Parcelable> extends ArrayListStoreAble<P> implements Parcelable {
 
     /**

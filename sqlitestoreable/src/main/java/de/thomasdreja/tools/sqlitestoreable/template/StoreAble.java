@@ -10,38 +10,56 @@
 
 package de.thomasdreja.tools.sqlitestoreable.template;
 
+import android.database.sqlite.SQLiteDatabase;
+
 import de.thomasdreja.tools.sqlitestoreable.reflection.StoreAbleField;
 
 /**
  * This interface provides the most basic methods to allow for storing objects into a SQLite database.
- * Any implementation should also provide a TableInformation to interconnect with the SQLiteTable
+ * Any implementation should also provide a TableInformation to interconnect with the TableWrapper.
+ * To include fields into the database, you must annotate them with StoreAbleField.
  * @see de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation
- * @see SQLiteTable
+ * @see TableWrapper
+ * @see StoreAbleField
  */
 public interface StoreAble {
 
+    /**
+     * Constant name for the ID field every StoreAble will have
+     * @see StoreAble#getId()
+     */
     String ID = "storeAbleId";
 
+    /**
+     * Constant name for the Related ID field every StoreAble will have
+     * @see StoreAble#getRelatedId()
+     */
     String RELATED_ID = "storeAbleRelatedID";
 
     /**
      * Whenever an object is not added to the database, it MUST have this value set as its ID
+     * All objects in the database will have larger numbers than this value
      * @see StoreAble#setId(long)
      * @see StoreAble#getId()
+     * @see TableWrapper#insert(StoreAble, SQLiteDatabase)
      */
     long INVALID_ID = 0;
 
     /**
      * Returns the database ID of the StoreAble. Used to update and store the element.
-     * @return Database ID, or -1 if no valid ID was set
+     * @return Database ID, or Invalid ID if none was set
+     * @see StoreAble#INVALID_ID
+     * @see StoreAble#ID
      */
     @StoreAbleField(fieldName = ID)
     long getId();
 
     /**
-     * Updates the database ID of the StoreAble. Should not be called directly by the user, only SQLiteTable
-     * @param id New database ID of the StoreAble or -1 to invalidate the ID
-     * @see SQLiteTable
+     * Updates the database ID of the StoreAble. Should not be called directly by the user, only TableWrapper
+     * @param id New database ID of the StoreAble or Invalid ID to invalidate the ID
+     * @see TableWrapper
+     * @see StoreAble#INVALID_ID
+     * @see StoreAble#ID
      */
     @StoreAbleField(fieldName = ID)
     void setId(long id);
@@ -51,8 +69,10 @@ public interface StoreAble {
      * @return ID of the parent collection, Invalid ID if not is set
      * @see StoreAbleCollection
      * @see StoreAble#INVALID_ID
+     * @see StoreAble#RELATED_ID
      */
     @StoreAbleField(fieldName = RELATED_ID)
+    @SuppressWarnings("unused")
     long getRelatedId();
 
     /**
@@ -60,6 +80,7 @@ public interface StoreAble {
      * @param id ID of the parent collection, Invalid ID to remove reference
      * @see StoreAbleCollection
      * @see StoreAble#INVALID_ID
+     * @see StoreAble#RELATED_ID
      */
     @StoreAbleField(fieldName = RELATED_ID)
     void setRelatedId(long id);

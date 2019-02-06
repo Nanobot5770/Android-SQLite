@@ -1,11 +1,23 @@
 /*
- * Copyright (c) 2018.  Thomas Dreja
+ * Copyright (c) 2019 Thomas Dreja
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 package de.thomasdreja.tools.sqlitestoreable.template;
@@ -24,9 +36,10 @@ import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
 /**
  * This class extends the Android SQLiteOpenHelper to allow for direct integration with the StoreAble system.
  * It provides all tools to create, read and write a database with one or more SQLiteTables
- * @see SQLiteTable
+ * @see TableWrapper
  * @see StoreAble
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class StoreAbleOpenHelper extends SQLiteOpenHelper {
 
     //region Variables and Constructors
@@ -39,7 +52,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     /**
      * Hashmap containing all tables of the database, indexed by table name
      */
-    protected final HashMap<Class<?>,SQLiteTable> tableMap;
+    protected final HashMap<Class<?>, TableWrapper> tableMap;
 
     /**
      * Application context, set via constructor
@@ -54,7 +67,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param version Version of the database - Increasing it will drop all existing elements!
      * @param tables Table information for creating all tables in the database
      * @see TableInformation
-     * @see SQLiteTable
+     * @see TableWrapper
      */
     public StoreAbleOpenHelper(Context context, String name, int version, TableInformation... tables) {
         super(context, name, null, version);
@@ -62,10 +75,22 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
         tableMap = new HashMap<>();
 
         for (TableInformation helper : tables) {
-            tableMap.put(helper.getStorageClass(), new SQLiteTable(helper));
+            if(helper.isValid()) {
+                tableMap.put(helper.getStorageClass(), new TableWrapper(helper));
+            }
         }
     }
 
+    /**
+     * Creates a new database based on the application context, name and version.
+     * Also creates the necessary helpers for the database based upon the given classes
+     * @param context Application context for the database
+     * @param name Name of the database
+     * @param version ersion of the database - Increasing it will drop all existing elements!
+     * @param classes List of classes to be stored within the database. All classes must implement StoreAble
+     * @see StoreAble
+     * @see TableInformation#createColumns(Class)
+     */
     public StoreAbleOpenHelper(Context context, String name, int version, Class<?>... classes) {
         this(context, name, version, TableInformation.createInformation(classes));
     }
@@ -73,14 +98,14 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        for(SQLiteTable table : tableMap.values()) {
+        for(TableWrapper table : tableMap.values()) {
             sqLiteDatabase.execSQL(table.createTable());
         }
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
-        for(SQLiteTable table : tableMap.values()) {
+        for(TableWrapper table : tableMap.values()) {
             sqLiteDatabase.execSQL(String.format(DROP_TABLE_IF, table.getName()));
             sqLiteDatabase.execSQL(table.createTable());
         }
@@ -104,21 +129,21 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
     }
 
     /**
-     *
+     * Returns the TableWrapper that is used for the given class
      * @param storageClass Class object used to identify the database table
-     * @return
+     * @return TableWrapper (Wrapper) that stores the elements of this class or null if the class is not within the database
      */
-    public SQLiteTable getTableFor(Class<? extends StoreAble> storageClass) {
+    public TableWrapper getTableFor(Class<? extends StoreAble> storageClass) {
         return tableMap.get(storageClass);
     }
 
     /**
-     *
+     * Returns all columns of the table used to store objects of the given class
      * @param storageClass Class object used to identify the database table
-     * @return
+     * @return An array of all columns used for storage. Array is empty if the class is not supported.
      */
     public TableInformation.DbColumn[] getColumnsFor(Class<? extends StoreAble> storageClass) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             return table.getColumns();
         }
@@ -134,10 +159,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param id ID of the element
      * @return Element as object of given class with the matching id
-     * @see SQLiteTable#get(Class, long, SQLiteDatabase)
+     * @see TableWrapper#get(Class, long, SQLiteDatabase)
      */
+    @SuppressWarnings("unchecked")
     public <S extends StoreAble> S get(Class<S> storageClass, long id) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             S element = table.get(storageClass, id, getReadableDatabase());
             if(element instanceof StoreAbleCollection) {
@@ -154,10 +180,10 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return A collection of all elements currently in the table as objects of class S
-     * @see SQLiteTable#getAll(Class, SQLiteDatabase)
+     * @see TableWrapper#getAll(Class, SQLiteDatabase)
      */
     public <S extends StoreAble> Collection<S> getAll(Class<S> storageClass) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             final Collection<S> elements = table.getAll(storageClass, getReadableDatabase());
             checkChildren(storageClass, elements);
@@ -173,10 +199,10 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param comparisons Comparisons to filter the elements
      * @param <S> Class of the element
      * @return A collection of all elements matching the query in the table as objects of the given class
-     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DbComparison...)
+     * @see TableWrapper#getWhere(Class, SQLiteDatabase, boolean, DbComparison...)
      */
     public <S extends StoreAble> Collection<S> getWhere(Class<S> storageClass, boolean and, DbComparison... comparisons) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             final Collection<S> elements = table.getWhere(storageClass, getReadableDatabase(), and, comparisons);
             checkChildren(storageClass, elements);
@@ -191,6 +217,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param elements A collection of elements that may potentially have children attached to each of them
      */
+    @SuppressWarnings("unchecked")
     private <S extends StoreAble> void checkChildren(Class<S> storageClass, Collection<S> elements) {
         if(StoreAbleCollection.class.isAssignableFrom(storageClass)) {
             for(S element : elements) {
@@ -206,8 +233,7 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param <C> Collection Class
      * @param relatedClass Related Class object used to identify the database table and for casting
      * @param collection Collection to be filled with related elements
-     * @return The given collection with all related elements add to it
-     * @see SQLiteTable#getWhere(Class, SQLiteDatabase, boolean, DbComparison[])
+     * @see TableWrapper#getWhere(Class, SQLiteDatabase, boolean, DbComparison[])
      * @see DbComparison#equalsRelatedId(StoreAbleCollection)
      */
     private <S extends StoreAble, C extends StoreAbleCollection<S>> void fillCollection(Class<S> relatedClass, C collection) {
@@ -226,10 +252,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param element  Element to be saved into the database
      * @return True: The element was saved, False: The element could not be saved
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#save(StoreAble, SQLiteDatabase)
      */
+    @SuppressWarnings("unchecked")
     public <S extends StoreAble> boolean save(Class<S> storageClass, StoreAble element) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             boolean success = table.save(element, getWritableDatabase());
             if(success && element instanceof StoreAbleCollection) {
@@ -247,10 +274,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param elements List of StoreAbles that needs to be stored
      * @return True: all elements were saved, False: Not all elements could be saved
-     * @see SQLiteTable#saveAll(Collection, SQLiteDatabase)
+     * @see TableWrapper#saveAll(Collection, SQLiteDatabase)
      */
+    @SuppressWarnings("unchecked")
     public <S extends StoreAble> boolean saveAll(Class<S> storageClass, Collection<S> elements) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             boolean success = table.saveAll(elements, getWritableDatabase());
             if(success && StoreAbleCollection.class.isAssignableFrom(storageClass)) {
@@ -264,6 +292,16 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
         return false;
     }
 
+    /**
+     * Stores all given StoreAbles within the database. Will also add IDs if necessary.
+     * All given StoreAbles will have their related ID set to the given ID!
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param elements List of StoreAbles that needs to be stored
+     * @param relatedId ID of the parent object / Related ID
+     * @param <S> Class of the element
+     * @return True: all elements were saved, False: Not all elements could be saved
+     * @see StoreAbleOpenHelper#saveAll(Class, Collection)
+     */
     private <S extends StoreAble> boolean saveAll(Class<S> storageClass, Collection<S> elements, long relatedId) {
         for(S element : elements) {
             element.setRelatedId(relatedId);
@@ -281,10 +319,11 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param element Element to be deleted from the database
      * @return True: Element was deleted, False: Element did not exist in database (no deletion necessary)
-     * @see SQLiteTable#delete(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#delete(StoreAble, SQLiteDatabase)
      */
+    @SuppressWarnings("unchecked")
     public <S extends StoreAble> boolean delete(Class<S> storageClass, StoreAble element) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         final boolean success = table != null
                 && storageClass.isInstance(element)
                 && table.delete(element, getWritableDatabase());
@@ -297,8 +336,17 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
         return success;
     }
 
+    /**
+     * Removes all StoreAbles within the collection from the database
+     * @param storageClass Class object used to identify the database table and for casting
+     * @param elements Collection of elements to be deleted
+     * @param <S> Class of the element
+     * @return True: All elements were deleted, False: Not all elements were deleted
+     * @see StoreAbleOpenHelper#delete(Class, StoreAble)
+     * @see TableWrapper#delete(StoreAble, SQLiteDatabase)
+     */
     public <S extends StoreAble> boolean deleteAll(Class<S> storageClass, Collection<S> elements) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             boolean success = true;
             for(S element : elements) {
@@ -309,16 +357,15 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
         return false;
     }
 
-
     /**
      * Returns the row count of the given table, aka the count of all StoreAble elements therein.
      * @param storageClass Class object used to identify the database table and for casting
      * @param <S> Class of the element
      * @return Count of all elements in the table.
-     * @see SQLiteTable#count(SQLiteDatabase)
+     * @see TableWrapper#count(SQLiteDatabase)
      */
     public <S extends StoreAble> int count(Class<S> storageClass) {
-        final SQLiteTable table = tableMap.get(storageClass);
+        final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
             return table.count(getReadableDatabase());
         }

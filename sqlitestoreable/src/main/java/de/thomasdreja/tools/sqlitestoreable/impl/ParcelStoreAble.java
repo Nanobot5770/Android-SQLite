@@ -14,16 +14,16 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
-import de.thomasdreja.tools.sqlitestoreable.template.SQLiteTable;
+import de.thomasdreja.tools.sqlitestoreable.template.TableWrapper;
 import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
 
 /**
  * This class extends the database storage capabilities of the basic StoreAble to include Parcel support for Android.
  * It contains a constructor for Parcels, Databases
  * and an empty default constructor that should be used to create an empty object before adding it to the database.
- * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
+ * @see TableWrapper#save(StoreAble, SQLiteDatabase)
  */
+@SuppressWarnings({"unused"})
 public abstract class ParcelStoreAble implements StoreAble, Parcelable {
 
     /**
@@ -42,6 +42,7 @@ public abstract class ParcelStoreAble implements StoreAble, Parcelable {
      * Creates a new StoreAble based upon the data stored in the Parcel
      * @param in Parcel to be read from
      */
+    @SuppressWarnings({"WeakerAccess"})
     protected ParcelStoreAble(Parcel in) {
         setId(in.readLong());
         setRelatedId(in.readLong());

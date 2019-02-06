@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2019 Thomas Dreja
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package de.thomasdreja.tools.sqlitestoreable.reflection;
 
 
@@ -9,36 +31,141 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
+/**
+ * This enum provides an enumeration for all possible types of content that can be stored into and restore from the database.
+ * The types are based on the parameters provided by ContentValues and Cursor
+ * @see ContentValues
+ * @see Cursor
+ */
 public enum ContentType {
-    STRING(SqliteType.TEXT, String.class),
+    /**
+     * String, stored as Text
+     * @see SQLiteType#TEXT
+     * @see String
+     */
+    STRING(SQLiteType.TEXT, String.class),
 
-    FLOAT(SqliteType.REAL, Float.class, Float.TYPE),
-    DOUBLE(SqliteType.REAL, Double.class, Double.TYPE),
+    /**
+     * Float, stored as Real
+     * @see SQLiteType#REAL
+     * @see Float
+     */
+    FLOAT(SQLiteType.REAL, Float.class, Float.TYPE),
 
-    BOOLEAN(SqliteType.INTEGER, Boolean.class, Boolean.TYPE),
-    BYTE(SqliteType.INTEGER, Byte.class, Byte.TYPE),
-    SHORT(SqliteType.INTEGER, Short.class, Short.TYPE),
-    INT(SqliteType.INTEGER, Integer.class, Integer.TYPE),
-    LONG(SqliteType.INTEGER, Long.class, Long.TYPE),
+    /**
+     * Double, stored as Real     *
+     * @see SQLiteType#REAL
+     * @see Double
+     */
+    DOUBLE(SQLiteType.REAL, Double.class, Double.TYPE),
 
-    BYTE_ARRAY(SqliteType.BLOB, byte[].class),
-    BINARY(SqliteType.BLOB);
+    /**
+     * Boolean, stored as Integer
+     * @see SQLiteType#INTEGER
+     * @see Boolean
+     */
+    BOOLEAN(SQLiteType.INTEGER, Boolean.class, Boolean.TYPE),
 
-    public final SqliteType sqlType;
+    /**
+     * Byte, stored as Integer
+     * @see SQLiteType#INTEGER
+     * @see Byte
+     */
+    BYTE(SQLiteType.INTEGER, Byte.class, Byte.TYPE),
+
+    /**
+     * Short, stored as Integer
+     * @see SQLiteType#INTEGER
+     * @see Short
+     */
+    SHORT(SQLiteType.INTEGER, Short.class, Short.TYPE),
+
+    /**
+     * Int, stored as Integer
+     * @see SQLiteType#INTEGER
+     * @see Integer
+     */
+    INT(SQLiteType.INTEGER, Integer.class, Integer.TYPE),
+
+    /**
+     * Long, stored as Integer
+     * @see SQLiteType#INTEGER
+     * @see Long
+     */
+    LONG(SQLiteType.INTEGER, Long.class, Long.TYPE),
+
+    /**
+     * Byte Array, stored as Blob
+     * @see SQLiteType#BLOB
+     * @see Byte
+     */
+    BYTE_ARRAY(SQLiteType.BLOB, byte[].class),
+
+    /**
+     * Binary, stored as Blob
+     * @see SQLiteType#BLOB
+     * @see Serializable
+     */
+    BINARY(SQLiteType.BLOB),
+
+    /**
+     * Unsupported, will not be stored!
+     */
+    UNSUPPORTED(SQLiteType.INTEGER);
+
+    /**
+     * Type the SQL Table will use to store the value
+     */
+    public final SQLiteType sqlType;
+
+    /**
+     * Java classes this content type supports. Empty if all classes are supported
+     */
     private final Class<?>[] classes;
-    ContentType(SqliteType type, Class<?>... classes) {
+
+    /**
+     * Creates a new ContentType that maps values of the given classes onto the given type of SQLite column
+     * @param type Type of the SqLite column
+     * @param classes Classes that will be mapped by this type
+     */
+    ContentType(SQLiteType type, Class<?>... classes) {
         this.sqlType = type;
         this.classes = classes;
     }
 
-    public enum SqliteType {
+    /**
+     * This enum represents the basic types of columns that SqLite can support.
+     * ContentTypes map onto this base types for storage
+     */
+    public enum SQLiteType {
+        /**
+         * Stores byte arrays
+         */
         BLOB,
+
+        /**
+         * Integer stores natural numbers (even long)
+         */
         INTEGER,
+
+        /**
+         * Real stores all real numbers (double and float)
+         */
         REAL,
+
+        /**
+         * Stores text strings
+         */
         TEXT
     }
 
+    /**
+     * For a given class this will return the ContentType that can handle this class
+     * @param type Class that needs to be stored in a column in the database
+     * @return ContentType for this class, ContentType.BINARY if the class needs to be serialized or UNSUPPORTED if the class cannot be handled
+     */
     public static ContentType getTypeOf(Class<?> type) {
         for(ContentType contentType : ContentType.values()) {
             for(Class<?> mClass : contentType.classes) {
@@ -47,61 +174,100 @@ public enum ContentType {
                 }
             }
         }
-        return ContentType.BINARY;
+        if(Serializable.class.isAssignableFrom(type)) {
+            return BINARY;
+        }
+        return ContentType.UNSUPPORTED;
     }
 
-    public boolean store(String fieldName, Object object, ContentValues values) {
-        return store(this, fieldName, object, values);
+    /**
+     * Stores the given value into the column into the ContentValues container
+     * @param columnName Name of the column (aka key)
+     * @param object Value of the field
+     * @param values Value Container
+     * @see ContentValues
+     * @see ContentType#store(ContentType, String, Object, ContentValues)
+     */
+    public void store(String columnName, Object object, ContentValues values) {
+        store(this, columnName, object, values);
     }
 
-    public Object restore(String fieldName, Cursor cursor) {
-        return restore(this, fieldName, cursor);
+    /**
+     * Extracts the value for the column from the cursor
+     * @param columnName Name of the Column
+     * @param cursor Database Query with the values
+     * @return Object or null if no value could be restored
+     * @see Cursor
+     * @see ContentType#restore(ContentType, String, Cursor)
+     */
+    public Object restore(String columnName, Cursor cursor) {
+        return restore(this, columnName, cursor);
     }
 
+    /**
+     * Returns whether the given object is an instance of this content type or not
+     * @param object Object to be compared
+     * @return True: Is instance of the type, False: Is instance of a different type
+     * @see ContentType#isInstanceOf(ContentType, Object)
+     */
+    @SuppressWarnings("unused")
     public boolean isInstanceOf(Object object) {
         return isInstanceOf(this, object);
     }
 
-    public static boolean store(ContentType type, String fieldName, Object object, ContentValues values) {
+    /**
+     * Stores the given value into the column into the ContentValues container
+     * @param type Type of the value to be stored
+     * @param columnName Name of the column (aka key)
+     * @param object Value of the field
+     * @param values Value Container
+     */
+    private static void store(ContentType type, String columnName, Object object, ContentValues values) {
         if(isInstanceOf(type, object)) {
             switch (type) {
                 case BINARY:
-                    values.put(fieldName, serialize(object));
-                    return true;
+                    values.put(columnName, serialize(object));
+                    return;
                 case BOOLEAN:
-                    values.put(fieldName, (Boolean) object);
-                    return true;
+                    values.put(columnName, (Boolean) object);
+                    return;
                 case BYTE:
-                    values.put(fieldName, (Byte) object);
-                    return true;
+                    values.put(columnName, (Byte) object);
+                    return;
                 case SHORT:
-                    values.put(fieldName, (Short) object);
-                    return true;
+                    values.put(columnName, (Short) object);
+                    return;
                 case INT:
-                    values.put(fieldName, (Integer) object);
-                    return true;
+                    values.put(columnName, (Integer) object);
+                    return;
                 case LONG:
-                    values.put(fieldName, (Long) object);
-                    return true;
+                    values.put(columnName, (Long) object);
+                    return;
                 case FLOAT:
-                    values.put(fieldName, (Float) object);
-                    return true;
+                    values.put(columnName, (Float) object);
+                    return;
                 case DOUBLE:
-                    values.put(fieldName, (Double) object);
-                    return true;
+                    values.put(columnName, (Double) object);
+                    return;
                 case STRING:
-                    values.put(fieldName, (String) object);
-                    return true;
+                    values.put(columnName, (String) object);
+                    return;
                 case BYTE_ARRAY:
-                    values.put(fieldName, (byte[]) object);
-                    return true;
+                    values.put(columnName, (byte[]) object);
             }
         }
-        return false;
     }
 
-    public static Object restore(ContentType type, String fieldName, Cursor cursor) {
-        final int index = cursor.getColumnIndex(fieldName);
+    /**
+     * Extracts the value for the column from the cursor
+     * @param type Type of the value to be extracted
+     * @param columnName Name of the Column
+     * @param cursor Database Query with the values
+     * @return Object or null if no value could be restored
+     * @see Cursor
+     */
+    private static Object restore(ContentType type, String columnName, Cursor cursor) {
+        final int index = cursor.getColumnIndex(columnName);
         if(index >= 0) {
             switch (type) {
                 case BINARY:
@@ -129,30 +295,48 @@ public enum ContentType {
         return null;
     }
 
-    public static boolean isInstanceOf(ContentType type, Object object) {
+    /**
+     * Returns whether the given object is an instance of this content type or not
+     * @param type Type to be compared
+     * @param object Object to be compared
+     * @return True: Is Instance of given type, False: Is instance of a different type
+     */
+    private static boolean isInstanceOf(ContentType type, Object object) {
         for(Class<?> mClass : type.classes) {
             if(mClass.isInstance(object)) {
                 return true;
             }
         }
-        return type == BINARY;
+        return object instanceof Serializable && type == BINARY;
     }
 
-    public static byte[] serialize(Object object) {
-        ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-        try {
-            ObjectOutputStream objectStream = new ObjectOutputStream(byteOutput);
-            objectStream.writeObject(object);
-            byte[] result = byteOutput.toByteArray();
-            byteOutput.close();
-            return result;
-        } catch (IOException e) {
-            e.printStackTrace();
+    /**
+     * Serializes the given object into a byte array
+     * @param object Object to be serialized
+     * @return Byte Array with the serialized contents
+     */
+    private static byte[] serialize(Object object) {
+        if(object instanceof Serializable) {
+            ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+            try {
+                ObjectOutputStream objectStream = new ObjectOutputStream(byteOutput);
+                objectStream.writeObject(object);
+                byte[] result = byteOutput.toByteArray();
+                byteOutput.close();
+                return result;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-        return new byte[0];
+        return null;
     }
 
-    public static Object deserialize(byte[] bytes) {
+    /**
+     * Restores an previously serialized object from a given byte array
+     * @param bytes Byte Array with the serialized contents
+     * @return Restored Object
+     */
+    private static Object deserialize(byte[] bytes) {
         if(bytes != null && bytes.length > 0) {
             try {
                 ByteArrayInputStream byteInput = new ByteArrayInputStream(bytes);

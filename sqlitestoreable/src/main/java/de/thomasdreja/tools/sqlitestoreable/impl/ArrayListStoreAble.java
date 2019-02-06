@@ -33,6 +33,7 @@ public abstract class ArrayListStoreAble<S extends StoreAble> extends ArrayList<
      * Creates a new, empty list that children can be attached to
      * @param storedClass Class of the stored child objects
      */
+    @SuppressWarnings("WeakerAccess")
     protected ArrayListStoreAble(Class<S> storedClass) {
         super();
         this.storedClass = storedClass;
@@ -91,6 +92,7 @@ public abstract class ArrayListStoreAble<S extends StoreAble> extends ArrayList<
         return super.add(child);
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public boolean addAll(Collection<? extends S> collection) {
         for(S child : collection) {
@@ -99,6 +101,7 @@ public abstract class ArrayListStoreAble<S extends StoreAble> extends ArrayList<
         return super.addAll(collection);
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public boolean addAll(int index, Collection<? extends S> collection) {
         for(S child : collection) {
@@ -124,6 +127,7 @@ public abstract class ArrayListStoreAble<S extends StoreAble> extends ArrayList<
         return child;
     }
 
+    @SuppressWarnings("NullableProblems")
     @Override
     public boolean removeAll(Collection<?> collection) {
         for(Object child : collection) {

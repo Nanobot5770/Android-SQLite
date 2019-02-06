@@ -1,11 +1,23 @@
 /*
- * Copyright (c) 2018.  Thomas Dreja
+ * Copyright (c) 2019 Thomas Dreja
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 package de.thomasdreja.tools.sqlitestoreable.template;
@@ -16,12 +28,17 @@ import android.database.sqlite.SQLiteDatabase;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import de.thomasdreja.tools.sqlitestoreable.reflection.ContentType;
 import de.thomasdreja.tools.sqlitestoreable.reflection.TableInformation;
 
 /**
  * This class provides all the methods necessary to create, read and write StoreAbles in specific table in SQLite database.
+ * This class serves as a wrapper and should only be used in conjunction with a SQLiteOpenHelper.
+ * @see android.database.sqlite.SQLiteOpenHelper
+ * @see StoreAbleOpenHelper
+ * @see TableInformation
  */
-public class SQLiteTable {
+public class TableWrapper {
     // region Variables & Constructors
 
     /**
@@ -35,7 +52,7 @@ public class SQLiteTable {
      * @see TableInformation
      * @see StoreAble
      */
-    SQLiteTable(TableInformation information) {
+    TableWrapper(TableInformation information) {
         this.information = information;
     }
 
@@ -43,6 +60,7 @@ public class SQLiteTable {
      * Returns the name of this table (must be constant)
      * @return Name of the table
      */
+    @SuppressWarnings("WeakerAccess")
     public String getName() {
         return information.getName();
     }
@@ -51,6 +69,7 @@ public class SQLiteTable {
      * Class that is stored within this table
      * @return Class of StoreAbles stored within this table
      */
+    @SuppressWarnings("unused")
     public Class<?> getStorageClass() {
         return information.getStorageClass();
     }
@@ -60,6 +79,7 @@ public class SQLiteTable {
      * Columns that this table consists out of
      * @return Columns of this table
      */
+    @SuppressWarnings("WeakerAccess")
     public TableInformation.DbColumn[] getColumns() {
         return information.getColumns();
     }
@@ -77,15 +97,18 @@ public class SQLiteTable {
         builder.append(" (");
         final TableInformation.DbColumn[] columns = information.getColumns();
         for(int i = 0; i < columns.length; i++) {
-            builder.append(columns[i].getName());
-            builder.append(" ");
-            if(columns[i].getName().equals(StoreAble.ID)) {
-                builder.append("INTEGER PRIMARY KEY");
-            } else {
-                builder.append(columns[i].getType().sqlType.name());
-            }
-            if(i != (columns.length-1)) {
-                builder.append(",");
+            if(columns[i].getType() != ContentType.UNSUPPORTED) {
+                builder.append(columns[i].getName());
+                builder.append(" ");
+                if(columns[i].getName().equals(StoreAble.ID)
+                        && columns[i].getType().sqlType == ContentType.SQLiteType.INTEGER) {
+                    builder.append("INTEGER PRIMARY KEY");
+                } else {
+                    builder.append(columns[i].getType().sqlType.name());
+                }
+                if(i != (columns.length-1)) {
+                    builder.append(",");
+                }
             }
         }
 
@@ -123,7 +146,7 @@ public class SQLiteTable {
      * @param database Database the elements are stored in
      * @return All elements currently in the table as a list of objects of class S
      * @see StoreAble
-     * @see SQLiteTable#getList(Class, Cursor)
+     * @see TableWrapper#getList(Class, Cursor)
      */
     <S extends StoreAble> Collection<S> getAll(Class<S> storeClass, SQLiteDatabase database) {
         Cursor cursor = database.query(information.getName(), null, null, null, null, null, null);
@@ -139,11 +162,12 @@ public class SQLiteTable {
      * @param comparisons Comparisons to filter the elements
      * @return A collection of all elements (as objects of class S) that have matching values
      * @see DbComparison
+     * @see DbComparison.DbQuery
      * @see StoreAble
-     * @see SQLiteTable#getList(Class, Cursor)
+     * @see TableWrapper#getList(Class, Cursor)
      */
     <S extends StoreAble> Collection<S> getWhere(Class<S> storageClass, SQLiteDatabase database, boolean and, DbComparison... comparisons) {
-        DbComparison.Query mQuery = new DbComparison.Query(and, comparisons);
+        DbComparison.DbQuery mQuery = new DbComparison.DbQuery(and, comparisons);
         if(mQuery.isValid()) {
             Cursor cursor = database.query(information.getName(), null, mQuery.where, mQuery.values, null, null, null);
             Collection<S> elements = getList(storageClass, cursor);
@@ -181,6 +205,8 @@ public class SQLiteTable {
      * @param element StoreAble that needs to be stored in the database
      * @param database Database where the StoreAble should be stored
      * @return True: The element was saved, False: The element could not be saved
+     * @see TableWrapper#insert(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#update(StoreAble, SQLiteDatabase)
      */
     boolean save(StoreAble element, SQLiteDatabase database) {
         if(element != null) {
@@ -199,6 +225,7 @@ public class SQLiteTable {
      * @param element Element to be stored
      * @param database Database for storage
      * @return True: The element was added, False: The element could not be added
+     * @see TableInformation#store(StoreAble, String...)
      */
     private boolean insert(StoreAble element, SQLiteDatabase database) {
         final long id = database.insert(information.getName(), null, information.store(element, StoreAble.ID));
@@ -213,6 +240,8 @@ public class SQLiteTable {
      * @param element Element to be stored
      * @param database Database for storage
      * @return True: The element was updated, False: The element could not be updated
+     * @see DbComparison#equalsId(StoreAble)
+     * @see TableInformation#store(StoreAble, String...)
      */
     private boolean update(StoreAble element, SQLiteDatabase database) {
         final DbComparison idComp = DbComparison.equalsId(element);
@@ -226,7 +255,7 @@ public class SQLiteTable {
      * @param elements List of StoreAbles that needs to be stored
      * @param database Database where the StoreAble should be stored
      * @return True: all elements were saved, False: Not all elements could be saved
-     * @see SQLiteTable#save(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#save(StoreAble, SQLiteDatabase)
      */
     boolean saveAll(Collection<?> elements, SQLiteDatabase database) {
         boolean saved = true;
@@ -248,6 +277,7 @@ public class SQLiteTable {
      * @param element Element to be deleted from the database
      * @param database Database where the StoreAble is stored
      * @return True: Element was deleted, False: Element did not exist in database (no deletion necessary)
+     * @see DbComparison#equalsId(StoreAble)
      */
     boolean delete(StoreAble element, SQLiteDatabase database) {
         int rows = 0;
@@ -258,23 +288,6 @@ public class SQLiteTable {
         database.close();
 
         return rows > 0;
-    }
-
-    /**
-     * Removes all elements from the database that match the given criteria.
-     * @param database Database where the StoreAbles are stored
-     * @param and True: All comparisons have to be fulfilled, False: Only one has to be fulfilled
-     * @param comparisons Comparisons to filter the elements
-     * @return The number of rows affected
-     */
-    int deleteWhere(SQLiteDatabase database, boolean and, DbComparison... comparisons) {
-        DbComparison.Query mQuery = new DbComparison.Query(and, comparisons);
-        if(mQuery.isValid()) {
-            int rows = database.delete(information.getName(), mQuery.where, mQuery.values);
-            database.close();
-            return rows;
-        }
-        return 0;
     }
 
     /**

@@ -252,13 +252,13 @@ public class StoreAbleOpenHelper extends SQLiteOpenHelper {
      * @param storageClass Class object used to identify the database table and for casting
      * @param element  Element to be saved into the database
      * @return True: The element was saved, False: The element could not be saved
-     * @see TableWrapper#save(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#save(StoreAble, SQLiteDatabase, boolean)
      */
     @SuppressWarnings("unchecked")
     public <S extends StoreAble> boolean save(Class<S> storageClass, StoreAble element) {
         final TableWrapper table = tableMap.get(storageClass);
         if(table != null) {
-            boolean success = table.save(element, getWritableDatabase());
+            boolean success = table.save(element, getWritableDatabase(), true);
             if(success && element instanceof StoreAbleCollection) {
                 final StoreAbleCollection collection = (StoreAbleCollection) element;
                 success = saveAll(collection.getChildClass(), collection.getCollection(), collection.getId());

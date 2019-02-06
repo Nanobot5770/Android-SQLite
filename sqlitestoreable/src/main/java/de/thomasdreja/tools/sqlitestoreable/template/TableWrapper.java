@@ -205,16 +205,17 @@ public class TableWrapper {
      * otherwise a new set will be added and the new ID will be set in the StoreAble
      * @param element StoreAble that needs to be stored in the database
      * @param database Database where the StoreAble should be stored
+     * @param closeAfterwards Should the database be closed after the operation?
      * @return True: The element was saved, False: The element could not be saved
-     * @see TableWrapper#insert(StoreAble, SQLiteDatabase)
-     * @see TableWrapper#update(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#insert(StoreAble, SQLiteDatabase, boolean)
+     * @see TableWrapper#update(StoreAble, SQLiteDatabase, boolean)
      */
-    boolean save(StoreAble element, SQLiteDatabase database) {
+    boolean save(StoreAble element, SQLiteDatabase database, boolean closeAfterwards) {
         if(element != null) {
             if(element.getId() > StoreAble.INVALID_ID) {
-                return update(element, database);
+                return update(element, database, closeAfterwards);
             } else {
-                return insert(element, database);
+                return insert(element, database, closeAfterwards);
             }
         }
         return false;
@@ -225,13 +226,16 @@ public class TableWrapper {
      * Note: Do not call when object has a valid ID and already exists in database!
      * @param element Element to be stored
      * @param database Database for storage
+     * @param closeAfterwards Should the database be closed after the operation?
      * @return True: The element was added, False: The element could not be added
      * @see TableInformation#store(StoreAble, String...)
      */
-    private boolean insert(StoreAble element, SQLiteDatabase database) {
+    private boolean insert(StoreAble element, SQLiteDatabase database, boolean closeAfterwards) {
         final long id = database.insert(information.getName(), null, information.store(element, StoreAble.ID));
         element.setId(id);
-        database.close();
+        if(closeAfterwards) {
+            database.close();
+        }
         return id >= 0;
     }
 
@@ -240,14 +244,17 @@ public class TableWrapper {
      * Note: Do not call if the object has no ID and doesn't exist in the database.
      * @param element Element to be stored
      * @param database Database for storage
+     * @param closeAfterwards Should the database be closed after the operation?
      * @return True: The element was updated, False: The element could not be updated
      * @see DbComparison#equalsId(StoreAble)
      * @see TableInformation#store(StoreAble, String...)
      */
-    private boolean update(StoreAble element, SQLiteDatabase database) {
+    private boolean update(StoreAble element, SQLiteDatabase database, boolean closeAfterwards) {
         final DbComparison idComp = DbComparison.equalsId(element);
         final int rows = database.update(information.getName(), information.store(element), idComp.where, idComp.array());
-        database.close();
+        if(closeAfterwards) {
+            database.close();
+        }
         return rows > 0;
     }
 
@@ -256,14 +263,16 @@ public class TableWrapper {
      * @param elements List of StoreAbles that needs to be stored
      * @param database Database where the StoreAble should be stored
      * @return True: all elements were saved, False: Not all elements could be saved
-     * @see TableWrapper#save(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#saveAll(Collection, SQLiteDatabase)
      */
     boolean saveAll(Collection<?> elements, SQLiteDatabase database) {
         boolean saved = true;
 
+        int count = 0;
         for(Object element : elements) {
+            count++;
             if(element instanceof StoreAble) {
-                saved = save((StoreAble) element, database) && saved;
+                saved = save((StoreAble) element, database, count >= elements.size()) && saved;
             }
         }
 

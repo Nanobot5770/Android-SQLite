@@ -146,6 +146,15 @@ public class MethodColumn implements TableInformation.DbColumn {
                 '}';
     }
 
+    @Override
+    @SuppressWarnings("NullableProblems")
+    public boolean equals(Object obj) {
+        if(obj instanceof TableInformation.DbColumn) {
+            return this.getName().equals(((TableInformation.DbColumn) obj).getName());
+        }
+        return super.equals(obj);
+    }
+
     /**
      * Returns whether a method is a setter, aka it has one parameter and returns void.
      * @param method Method to be checked

@@ -116,4 +116,13 @@ public class FieldColumn implements TableInformation.DbColumn {
                 ", contentType=" + contentType +
                 '}';
     }
+
+    @Override
+    @SuppressWarnings("NullableProblems")
+    public boolean equals(Object obj) {
+        if(obj instanceof TableInformation.DbColumn) {
+            return this.getName().equals(((TableInformation.DbColumn) obj).getName());
+        }
+        return super.equals(obj);
+    }
 }

@@ -128,12 +128,17 @@ public class TableInformation {
      */
     public <S extends StoreAble> ContentValues store(S element, String... removeColumns) {
         ContentValues values = new ContentValues();
+        final boolean removeCols = removeColumns != null && removeColumns.length > 0;
         if(storageClass.isInstance(element)) {
             for(DbColumn column : columns) {
-                for(String ignore : removeColumns) {
-                    if(!column.getName().equals(ignore)) {
-                        column.storeValue(element, values);
+                if(removeCols) {
+                    for(String ignore : removeColumns) {
+                        if(!column.getName().equals(ignore)) {
+                            column.storeValue(element, values);
+                        }
                     }
+                } else {
+                    column.storeValue(element, values);
                 }
             }
         }
@@ -253,7 +258,10 @@ public class TableInformation {
         for(Field field : storageClass.getDeclaredFields()) {
             if(field.getAnnotation(StoreAbleField.class) != null) {
                 try {
-                    columns.add(new FieldColumn(field));
+                    FieldColumn column = new FieldColumn(field);
+                    if(!columns.contains(column)) {
+                        columns.add(column);
+                    }
                 } catch (DatabaseSchemeException e) {
                     e.printStackTrace();
                 }
@@ -267,7 +275,10 @@ public class TableInformation {
             if(annotation != null && !annotation.fieldName().isEmpty()) {
                 if((other = methodHashMap.get(annotation.fieldName())) != null) {
                     try {
-                        columns.add(new MethodColumn(method, other));
+                        MethodColumn column = new MethodColumn(method, other);
+                        if(!columns.contains(column)) {
+                            columns.add(column);
+                        }
                     } catch (DatabaseSchemeException e) {
                         e.printStackTrace();
                     }

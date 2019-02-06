@@ -24,6 +24,7 @@ package de.thomasdreja.tools.sqlitestoreable.template;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -41,7 +41,7 @@ public interface StoreAble {
      * All objects in the database will have larger numbers than this value
      * @see StoreAble#setId(long)
      * @see StoreAble#getId()
-     * @see TableWrapper#insert(StoreAble, SQLiteDatabase)
+     * @see TableWrapper#insert(StoreAble, SQLiteDatabase, boolean)
      */
     long INVALID_ID = 0;
 

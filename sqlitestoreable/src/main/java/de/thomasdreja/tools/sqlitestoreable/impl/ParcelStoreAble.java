@@ -21,7 +21,7 @@ import de.thomasdreja.tools.sqlitestoreable.template.StoreAble;
  * This class extends the database storage capabilities of the basic StoreAble to include Parcel support for Android.
  * It contains a constructor for Parcels, Databases
  * and an empty default constructor that should be used to create an empty object before adding it to the database.
- * @see TableWrapper#save(StoreAble, SQLiteDatabase)
+ * @see TableWrapper#save(StoreAble, SQLiteDatabase, boolean)
  */
 @SuppressWarnings({"unused"})
 public abstract class ParcelStoreAble implements StoreAble, Parcelable {

@@ -291,6 +291,24 @@ public enum ContentType {
                 case BYTE_ARRAY:
                     return cursor.getBlob(index);
             }
+        // Safety check: Don't return null for numbers and booleans
+        } else {
+            switch (type) {
+                case BOOLEAN:
+                    return false;
+                case BYTE:
+                    return (byte) 0;
+                case SHORT:
+                    return (short) 0;
+                case INT:
+                    return 0;
+                case LONG:
+                    return 0L;
+                case FLOAT:
+                    return 0F;
+                case DOUBLE:
+                    return 0D;
+            }
         }
         return null;
     }
